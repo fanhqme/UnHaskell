@@ -1,0 +1,37 @@
+(
+(def id (\x x))
+(def recur (\x (x x)))
+
+; the Bool protocol:   (b  true_value  false_value)
+(def True (\x\y x))
+(def False (\x\y y))
+(def if id)
+(def not (\x False True))
+(def and (\x\y (x y False)))
+(def or (\x\y (x True y)))
+
+; the Pair protocol:   (p (\first\second pair_value))
+(def pair (\x\y\f (f x y)))
+(def fst True)
+(def snd False)
+
+; the List protocol:   (l null_value (\head\tail list_value))
+(def empty fst)
+(def cons (\x\xs\f\g (g x xs)))
+(def foldl (\f \x0 (\recur (\g (\l
+	(l x0 (\x\xs
+		(f x (g xs))
+	))
+)))))
+
+; the Maybe protocol:  (m nothing_value (\v just_value))
+(def nothing fst)
+(def just (v (\f\g (g v))))
+
+; functional utils
+(def apply id)
+(def feed (\x\y (y x)))
+
+; numeric utils
+(def neg (- 0))
+)

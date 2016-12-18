@@ -1,0 +1,39 @@
+((import str)
+
+;impl helpers
+(let readIfF (\handle\condition
+	(do
+		(c (peekCharF handle))
+		(if (condition c)
+			(run
+				(_ getCharF)  ; must be c
+				(return (just c))
+			)
+			(return nothing)
+		)
+	)
+))
+(let readWhileF (\handle\condition (recur \r
+	(do
+		(c_m (readIfF handle condition))
+		(c_m
+			(return [])
+			(\c (run
+				(remain r)
+				(return (cons c remain))
+			))
+		)
+	)
+)))
+
+; the numerics
+(def readIntF (\handle
+	(do
+		(sign_m (readIfF handle (== '-')))
+		(let sign (sign_m 1 (neg 1)))
+		(numbers_c (readWhileF handle str.isDigit))
+		(let numbers (atoi numbers_c))
+		(return (* sign numbers))
+	)
+))
+)
