@@ -7,10 +7,39 @@ data BFunc = BArithFunc BArith | BArith2Func BBinaryArith  deriving Show
 data BValue = BNumVal BNum | BFuncVal BFunc | BIntList [Int]  deriving Show
 data BResult = BClean BValue | BException [Char] deriving Show
 
+showBNum :: BNum -> [Char]
+showBNum (BInt v) = show v
+showBNum (BFloat v) = show v
+
+showBBinaryArith :: BBinaryArith -> [Char]
+showBBinaryArith BAdd = "+"
+showBBinaryArith BSub = "-"
+showBBinaryArith BMul = "*"
+showBBinaryArith BDiv = "/"
+showBBinaryArith BMod = "%"
+
+showBFunc :: BFunc -> [Char]
+showBFunc (BArithFunc (BArith2 b v)) = "("++(showBBinaryArith b)++" "++(showBNum v)++")"
+showBFunc (BArithFunc BToInt) = "toInt"
+showBFunc (BArithFunc BToFloat) = "toFloat"
+showBFunc (BArith2Func b) = showBBinaryArith b
+
+showBValue :: BValue -> [Char]
+showBValue (BNumVal v) = showBNum v
+showBValue (BFuncVal v) = showBFunc v
+showBValue (BIntList v) = "(fileName (list"++(concat $ map (\x -> (' ':(show x))) v)++"))" where
+
 numToBResult :: BNum -> BResult
 numToBResult a = BClean (BNumVal a)
 
 data BCompType = BLe | BGe | BNLe | BNGe | BEq | BNEq deriving Show
+
+showBCompType BLe = "<"
+showBCompType BGe = ">"
+showBCompType BNLe = ">="
+showBCompType BNGe = "<="
+showBCompType BEq = "=="
+showBCompType BNEq = "/="
 
 applyBVal :: BValue -> BValue -> BResult
 applyBVal (BFuncVal b) (BNumVal v) = applyBFunc b v

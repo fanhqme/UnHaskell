@@ -1,10 +1,11 @@
 module UParse where
 
 import Data.Char
+import ULambdaExpression
 
 type SPosition = (Int,Int)
 data SMayFail a = SFail [Char] SPosition | SSucc a deriving Show
-data SToken = STAtom [Char] | STInt Int | STDouble Double | SLeftPar | SRightPar | STLambda | STStr deriving Show
+data SToken = STAtom [Char] | STInt Int | STDouble Double | SLeftPar | SRightPar | STLambda | STStr [Char] deriving Show
 data STokenTree = STTNode SToken | STTList [(STokenTree,SPosition)]
 
 instance Show STokenTree where
@@ -13,10 +14,22 @@ instance Show STokenTree where
 			STTNode token -> take indent (repeat ' ') ++ ((show token) ++" ;"++(show pos)++ "\n")
 			STTList trees -> ((take indent (repeat ' '))++"STTree ;"++(show pos)++"\n")++concat (map (\(x,p) -> show' x (indent+4) p) trees)
 
-data SSExp = SSInt Int | SSDouble Double | SSLambda [Char] (SSExp,SPosition) | SSRef [Char] | SSApply (SSExp,SPosition) (SSExp,SPosition) deriving Show
-data SSImport = SSImport [Char] Bool deriving Show
-data SSDef = SSDef [Char] (SSExp,SPosition) Bool deriving Show
-data SSModule = SSMainModule [(SSImport,SPosition)] [(SSDef,SPosition)] (SSExp,SPosition) | SSSubModule [Char] [(SSImport,SPosition)] [(SSDef,SPosition)] deriving Show
+data SSExp = SSInt Int | SSDouble Double | SSLambda [Char] (SSExp,SPosition) | SSRef [Char] | SSApply (SSExp,SPosition) (SSExp,SPosition)
+data SVisibility = SVLocal | SVGlobal deriving Show
+data SImportMode = SIQualified | SIUnqualified deriving Show
+data SSImport = SSImport [Char] SImportMode deriving Show
+data SSDef = SSDef [Char] (SSExp,SPosition) SVisibility deriving Show
+data SSModule = SSModule [(SSImport,SPosition)] [(SSDef,SPosition)] deriving Show
+
+instance Show SSExp where
+	show t = show' t 0 (0,0) where
+		show' t indent pos = case t of
+			SSInt val -> ((show val) ++" #|"++(show pos)++"|#")
+			SSDouble val -> ((show val) ++" #|"++(show pos)++"|#")
+			SSRef name -> (name ++" #|"++(show pos)++"|#")
+			SSLambda name (e,p) -> ("(\\"++name ++" ;"++(show pos)++ "\n" ++ (take indent (repeat ' ')) ++ show' e (indent+4) p ++(take indent (repeat ' '))++")")
+			SSApply (e1,p1) (e2,p2) -> ("("++ show' e1 (indent+4) p1 ++ "\n" ++ (take indent (repeat ' '))++show' e2 (indent+4) p2++")")
+
 
 instance Monad SMayFail where
 	(SSucc a) >>= g = g a
@@ -27,12 +40,17 @@ annotatePositions :: [Char] -> [(Char,SPosition)]
 annotatePositions content = zip content (scanl (\(l0,c0) c -> 
 	if c=='\n' then (l0+1,0) else (l0,c0+1)) (0,0) content)
 
-dropWhiteSpace :: [(Char,SPosition)] -> [(Char,SPosition)]
-dropWhiteSpace [] = []
+dropWhiteSpace :: [(Char,SPosition)] -> SMayFail [(Char,SPosition)]
+dropWhiteSpace [] = return []
 dropWhiteSpace ((a,ap):ar)
 	| isSpace a = dropWhiteSpace ar
 	| a==';' = dropWhiteSpace (dropWhile (\(b,_) -> b/='\n') ar)
-	| otherwise = ((a,ap):ar)
+	| a=='#' && not (null ar) && (fst (head ar))=='|' = waitUntilClose (tail ar) ap
+	| otherwise = return ((a,ap):ar) where
+		waitUntilClose [] ap = SFail "unclosed block comment" ap
+		waitUntilClose (_:[]) ap = SFail "unclosed block comment" ap
+		waitUntilClose (('|',_):('#',_):arr) ap = dropWhiteSpace arr
+		waitUntilClose (_:arr) ap = waitUntilClose arr ap
 
 isValidCharInt :: Int -> Bool
 isValidCharInt a = (a>=0 && a<1114112)
@@ -65,14 +83,14 @@ splitChrSpecial ar ap = case ar of
 	((c,_):arr) -> SSucc (c,arr)
 splitStrLiteral :: [(Char,SPosition)] -> SPosition -> SMayFail ((SToken,SPosition),[(Char,SPosition)])
 splitStrLiteral ar ap = case ar of
-	('"',_):arr -> SSucc ((STAtom "",ap),arr)
+	('"',_):arr -> SSucc ((STStr "",ap),arr)
 	('\\',arp):arr -> do
 		(c,arrr) <- splitChrSpecial arr arp
-		(((STAtom sr),_),arrrr) <- splitStrLiteral arrr ap
-		return ((STAtom (c:sr),ap),arrrr)
+		(((STStr sr),_),arrrr) <- splitStrLiteral arrr ap
+		return ((STStr (c:sr),ap),arrrr)
 	(ah,_):arr -> do
-		(((STAtom sr),_),arrr) <- splitStrLiteral arr ap
-		return ((STAtom (ah : sr),ap),arrr)
+		(((STStr sr),_),arrr) <- splitStrLiteral arr ap
+		return ((STStr (ah : sr),ap),arrr)
 	[] -> SFail "unmatched \"" ap
 splitCharLiteral :: [(Char,SPosition)] -> SPosition -> SMayFail ((SToken,SPosition),[(Char,SPosition)])
 splitCharLiteral ar ap = case ar of
@@ -83,7 +101,7 @@ splitCharLiteral ar ap = case ar of
 			('\'',_):arrr -> SSucc (((STInt (ord c)),ap),arrr)
 			_ -> SFail "unmatched \'" ap
 	(c0,_):('\'',_):arr -> SSucc (((STInt (ord c0)),ap),arr)
-	[] -> SFail "unmatched \"" ap
+	_ -> SFail "unmatched \'" ap
 
 isStopChar c = isSpace c || elem c "()\\;"
 splitNumLiteral :: [(Char,SPosition)] -> SMayFail ((SToken,SPosition),[(Char,SPosition)]) 
@@ -133,7 +151,7 @@ splitFirstString ((a,ap):ar)
 	| otherwise = (let (al,arr) =span (\(x,_) -> not (isStopChar x)) ((a,ap):ar) in
 		SSucc ((STAtom (map fst al),ap),arr))
 groupStrings :: [(Char,SPosition)] -> SMayFail [(SToken,SPosition)] 
-groupStrings = groupStrings' . dropWhiteSpace where
+groupStrings = (\x -> (dropWhiteSpace x) >>= groupStrings') where
 	groupStrings' [] = SSucc []
 	groupStrings' a = do
 		(f,r) <- splitFirstString a
@@ -160,3 +178,82 @@ groupTokenTree a = (groupTokenTree' a) >>= (\(r,remain) -> case remain of
 			(t,rr) <- groupTokenTree' a
 			(ts,rrr) <- groupUntilRightPar rr sp
 			return ((t:ts),rrr)
+
+parseSSExp :: (STokenTree,SPosition) -> SMayFail (SSExp,SPosition)
+parseSSExp (tree,sp) = case tree of
+	STTNode (STAtom name) -> return (SSRef name,sp)
+	STTNode (STInt val) -> return (SSInt val,sp)
+	STTNode (STDouble val) -> return (SSDouble val,sp)
+	STTNode (STStr val) -> return (constructStrSugar val sp)
+	STTNode _ -> SFail "illegal token " sp
+	STTList (((STTNode STLambda),p):r) -> constructLambdaSugar r p
+	STTList (((STTNode (STAtom "lambda")),p):r) -> constructLambdaSugar r p
+	STTList (((STTNode (STAtom "list")),p):[]) -> SFail "list expression must not be empty" p
+	STTList (((STTNode (STAtom "list")),p):r) -> constructListSugar r p
+	STTList [] -> SFail "empty expression" sp
+	STTList (_:[]) -> SFail "extra parenthesis" sp
+	STTList (f:r) -> do
+		(e1,p1) <- parseSSExp f
+		constructApplySugar r (e1,p1)
+	where
+		constructStrSugar [] sp = ((SSRef "empty"),sp)
+		constructStrSugar (a:ar) sp = ((SSApply (SSApply (SSRef "cons",sp) ((SSInt (ord a)),sp),sp) (constructStrSugar ar sp)),sp)
+		constructLambdaSugar [] p = SFail "incomplete lambda expression" p
+		constructLambdaSugar (_:[]) p = SFail "incomplete lambda expression" p
+		constructLambdaSugar ((STTNode (STAtom name),p1):body:[]) p = do
+			(ebody,pb) <- parseSSExp body
+			return ((SSLambda name (ebody,pb)),p1)
+		constructLambdaSugar ((_,p1):_:[]) p = SFail "lambda expression needs a variable name" p1
+		constructLambdaSugar ((STTNode (STAtom name),p1):r) p = do
+			(ebody,pb) <- constructLambdaSugar r p
+			return ((SSLambda name (ebody,pb)),p1)
+		constructLambdaSugar ((_,p1):_) p = SFail "lambda expression needs a variable name" p1
+		constructListSugar [] p = return ((SSRef "empty"),p)
+		constructListSugar (f:r) p = do
+			(e1,p1) <- parseSSExp f
+			(remain,p2) <- constructListSugar r p
+			return ((SSApply ((SSApply ((SSRef "cons"),p1) (e1,p1)),p1) (remain,p2)),p1)
+		constructApplySugar [] (e,p) = SSucc (e,p)
+		constructApplySugar (f:r) (e,p) = do
+			(e1,p1) <- parseSSExp f
+			constructApplySugar r ((SSApply (e,p) (e1,p1)),p)
+
+parseSSModule :: (STokenTree,SPosition) -> SMayFail (SSModule,SPosition)
+parseSSModule (STTNode _,p) = SFail "program must start with (" p
+parseSSModule (STTList trees,p) = do
+	(simports,others1) <- getImportBlock trees
+	(sdefs,others2) <- getDefBlock others1
+	(case others2 of
+		[] -> SSucc ((SSModule simports sdefs),p)
+		r -> SFail ("illegal declaration "++(show r)) (snd (head r))
+		) where
+		getImportBlock blocks = case blocks of
+			[] -> SSucc ([],[])
+			((STTList [(STTNode (STAtom "import"),_),(STTNode (STAtom name),_)]),p1):r -> do
+				(sis,remain) <- getImportBlock r
+				return ((((SSImport name SIUnqualified),p1):sis),remain)
+			((STTList [(STTNode (STAtom "import"),_),(STTNode (STAtom "qualified"),_),(STTNode (STAtom name),_)]),p1):r -> do
+				(sis,remain) <- getImportBlock r
+				return ((((SSImport name SIQualified),p1):sis),remain)
+			_ -> SSucc ([],blocks)
+		getDefBlock blocks = case blocks of
+			[] -> SSucc ([],[])
+			((STTList [(STTNode (STAtom "def"),_),(STTNode (STAtom name),_),body]),p1):r -> do 
+				(firstexp,p2) <- parseSSExp body
+				(sds,remain) <- getDefBlock r
+				return ((((SSDef name (firstexp,p2) SVGlobal),p1):sds),remain)
+			((STTList [(STTNode (STAtom "let"),_),(STTNode (STAtom name),_),body]),p1):r -> do 
+				(firstexp,p2) <- parseSSExp body
+				(sds,remain) <- getDefBlock r
+				return ((((SSDef name (firstexp,p2) SVLocal),p1):sds),remain)
+			_ -> SSucc ([],blocks)
+
+extractLExpr :: SSExp -> LExpr
+extractLExpr s = case s of
+	(SSInt v) -> LInt v
+	(SSDouble v) -> LDouble v
+	(SSLambda a (v,_)) -> LAbs a (extractLExpr v)
+	(SSRef v) -> LRef v
+	(SSApply (v1,_) (v2,_)) -> LApply (extractLExpr v1) (extractLExpr v2)
+
+parseLExprStr a = (groupStrings $ annotatePositions a) >>= groupTokenTree >>= parseSSExp >>= (return . extractLExpr.fst)

@@ -1,0 +1,32 @@
+(
+(import haha)
+(import haha2)
+(import qualified haha3)
+(def main (\x
+	(list a
+	1
+	2  #|
+	+123 |#
+	+123
+	-13
+	134.45
+	)
+))
+(let some (
+	-134.56
+	23e4
+	"\x012"
+	'\x012'
+	23e-4
+	+23e-4
+	-23e-4   ; --
+	"haha"
+	"ha\tha"
+	"h\"a\tha"
+	'a'
+	'h'
+	'\''
+	'\n'
+	)
+)
+)

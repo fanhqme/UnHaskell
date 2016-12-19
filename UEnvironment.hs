@@ -5,11 +5,10 @@ import System.Environment
 import Data.Char
 import qualified Data.Map as Map
 
-
-
 class UEnv e where
 	eExit :: Int -> e ()
 	eException :: [Char] -> e ()
+	eReturnResult :: [Char] -> e ()
 	eOpen :: [Int] -> Int -> e Int
 	eClose :: Int -> e Int
 	eGetChar :: Int -> e Int
@@ -20,7 +19,7 @@ class UEnv e where
 efOpenModes = [ReadMode,WriteMode,AppendMode,ReadWriteMode]
 -- currently, only r and w are supported
 
-data UFinishState a = URunning a | UFinished Int | UExceptionHappened [Char] deriving Show
+data UFinishState a = URunning a | UFinished Int | UExceptionHappened [Char] | UResultReturned [Char] deriving Show
 data UFileList h = UFileList {flFiles::[Maybe h],flArgToRead::[Int]} deriving Show
 
 flAddHandle :: h -> UFileList h -> (Int,UFileList h)
@@ -52,6 +51,7 @@ instance Monad URealWorldEnv where
 				case finishstate1 of
 					UFinished r -> return (UFinished r ,files1)
 					UExceptionHappened e -> return (UExceptionHappened e,files1)
+					UResultReturned e -> return (UResultReturned e,files1)
 					URunning va -> runRealWorldEnv (g va) files1
 			)
 		)
@@ -66,6 +66,8 @@ instance UEnv URealWorldEnv where
 		return (UFinished retval,initfiles))
 	eException msg = URealWorldEnv (\initfiles ->
 		return (UExceptionHappened msg,initfiles))
+	eReturnResult msg = URealWorldEnv (\initfiles ->
+		return (UResultReturned msg,initfiles))
 	eOpen filename mode = URealWorldEnv (\initfiles ->
 		if (mode>=0 && mode<=length efOpenModes) then
 			return (URunning (-2),initfiles)
@@ -126,6 +128,7 @@ runRealWorld a = (runRealWorldEnv (initRealWorldEnv >> a) (UFileList [] [])) >>=
 		case exitstate of
 			UFinished 0 -> return ()
 			UFinished a -> putStrLn ("exit with code "++show a)
-			UExceptionHappened e -> putStrLn e
+			UExceptionHappened e -> putStrLn ("Exception: " ++ e)
+			UResultReturned e -> putStrLn e
 			URunning _ -> putStrLn "execution interupted"
 	)

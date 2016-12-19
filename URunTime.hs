@@ -3,6 +3,7 @@ module URunTime where
 import qualified Data.Map as Map
 import UData
 import UEnvironment
+import ULambdaExpression
 
 data VComp = VComp BCompType | VComp1 BCompType BNum deriving Show
 data VSysCall = VExit | VExit1 Int | VOpen | VOpen1 [Int] | VOpen2 [Int] Int | VOpen3 [Int] Int VResult | VClose | VClose1 Int | VClose2 Int VResult | VGetChar | VGetChar1 Int | VGetChar2 Int VResult | VPeekChar | VPeekChar1 Int | VPeekChar2 Int VResult | VPutChar | VPutChar1 Int | VPutChar2 Int Int | VPutChar3 Int Int VResult | VGetArg | VGetArg1 VResult deriving Show
@@ -11,6 +12,43 @@ data VExpression = VClean Value | VApply VExpression VExpression | VRef [Char]  
 type VContext=Map.Map [Char] VResult
 type BoundValue = (Value,VContext)
 data VResult = VGood BoundValue | VException [Char] deriving Show
+
+showVComp (VComp b) = showBCompType b
+showVComp (VComp1 b v) = "("++(showBCompType b)++" "++(showBNum v)++")"
+
+showVSysCall VExit = "exit"
+showVSysCall (VExit1 v) = "(exit "++(show v)++")"
+showVSysCall VOpen = "open"
+showVSysCall (VOpen1 v) = "(open "++(showBValue (BIntList v))++")"
+showVSysCall (VOpen2 v a) = "(open "++(showBValue (BIntList v))++" "++(show a)++")"
+showVSysCall (VOpen3 v a _) = "(open "++(showBValue (BIntList v))++" "++(show a)++" ...)"
+showVSysCall VClose = "close"
+showVSysCall (VClose1 v) = "(close "++(show v)++")"
+showVSysCall (VClose2 v _) = "(close "++(show v)++" ...)"
+showVSysCall VGetChar = "getChar"
+showVSysCall (VGetChar1 v) = "(getChar "++(show v)++")"
+showVSysCall (VGetChar2 v _) = "(getChar "++(show v)++" ...)"
+showVSysCall VPeekChar = "peekChar"
+showVSysCall (VPeekChar1 v) = "(peekChar "++(show v)++")"
+showVSysCall (VPeekChar2 v _) = "(peekChar "++(show v)++" ...)"
+showVSysCall VPutChar = "putChar"
+showVSysCall (VPutChar1 v) = "(putChar "++(show v)++")"
+showVSysCall (VPutChar2 v a) = "(putChar "++(show v)++" "++(show a)++")"
+showVSysCall (VPutChar3 v a _) = "(putChar "++(show v)++" "++(show a)++" ...)"
+showVSysCall (VGetArg) = "getArg"
+showVSysCall (VGetArg1 _) = "(getArg ...)"
+
+showValue :: Value -> [Char]
+showValue (VBuiltin b) = showBValue b
+showValue (VAbs name e) = "(\\"++name++" "++(showVExpression e)++")"
+showValue (VCompFunc v) = showVComp v
+showValue (VSys v) = showVSysCall v
+
+showVExpression :: VExpression -> [Char]
+showVExpression e = case e of
+	(VRef v) -> v
+	(VApply v1 v2) -> "("++(showVExpression v1)++" "++(showVExpression v2)++")"
+	(VClean v) -> showValue v
 
 veAbs a b = VClean (VAbs a b)
 
@@ -27,7 +65,7 @@ boolValue True = vTrue
 boolValue False = vTrue
 
 veInt a=VClean (VBuiltin (BNumVal (BInt a)))
-veFloat a=VClean (VBuiltin (BNumVal (BFloat a)))
+veDouble a=VClean (VBuiltin (BNumVal (BFloat a)))
 
 vBuiltInList=[
 	("+", (VBuiltin (BFuncVal (BArith2Func BAdd)))),
@@ -35,6 +73,8 @@ vBuiltInList=[
 	("*", (VBuiltin (BFuncVal (BArith2Func BMul)))),
 	("/", (VBuiltin (BFuncVal (BArith2Func BDiv)))),
 	("%", (VBuiltin (BFuncVal (BArith2Func BMod)))),
+	("toInt", (VBuiltin (BFuncVal (BArithFunc BToInt)))),
+	("toFloat", (VBuiltin (BFuncVal (BArithFunc BToFloat)))),
 	("<", (VCompFunc (VComp BLe))),
 	(">=", (VCompFunc (VComp BNLe))),
 	(">", (VCompFunc (VComp BGe))),
@@ -50,8 +90,8 @@ vBuiltInList=[
 	("peekCharF", (VSys (VPeekChar))),
 	("putChar", (VSys (VPutChar1 1))),
 	("putCharF", (VSys (VPutChar))),
-	("getArgs", (VSys (VGetArg))),
-	("makeIntList", (VBuiltin (BIntList [])))
+	("getArg", (VSys (VGetArg))),
+	("consFileName", (VBuiltin (BIntList [])))
 	]
 
 emptyContext = (Map.empty::VContext)
@@ -63,6 +103,7 @@ applyFunc :: BoundValue -> VResult -> VResult
 applyFunc ((VBuiltin a),ca) br = (case br of
 	(VException e) -> VException e
 	(VGood (VBuiltin b,_)) -> bValToVResult (applyBVal  a b)
+	(VGood _) -> VException ("cannot feed non-builtin value to builtin value "++(show a))
 	)where
 		bValToVResult (BException e) = VException e
 		bValToVResult (BClean v) = VGood (VBuiltin v,emptyContext)
@@ -82,7 +123,7 @@ applyFunc (VSys VExit,_) br = case br of
 applyFunc (VSys (VExit1 _),_) _ = VException "too many arguments given to syscall exit"
 applyFunc (VSys VOpen,_) br = case br of
 						(VException e)                      -> VException e
-						(VGood ((VBuiltin (BIntList b)),_)) -> VGood (VSys (VOpen1 (reverse b)),emptyContext)
+						(VGood ((VBuiltin (BIntList b)),_)) -> VGood (VSys (VOpen1 b),emptyContext)
 						_                                   -> VException "cannot call Open with non-IntList filename"
 applyFunc (VSys (VOpen1 a),_) br = case br of
 						(VException e)                      -> VException e
@@ -146,8 +187,17 @@ executeVResult vr = case vr of
 		(VSys (VGetChar2 f cont)) -> (eGetChar f) >>= (\retval -> (executeVResult (feedVResult cont (veInt retval))))
 		(VSys (VPeekChar2 f cont)) -> (ePeekChar f) >>= (\retval -> (executeVResult (feedVResult cont (veInt retval))))
 		(VSys (VGetArg1 cont)) -> eGetArg >>= (\retval -> (executeVResult (feedVResult cont (veInt retval))))
-		(VSys _) -> eException "insufficient syscall args"
-		_ -> eException "expression not evaluated to a syscall"
+		(VSys s) -> eException ("insufficient syscall args in "++(show s))
+		r -> eReturnResult (showValue r)
+		-- r -> eException "evaluated to non-builtin type"
 		)
 executeVExp :: (UEnv e) => (Monad e) => VExpression -> e()
 executeVExp exp = executeVResult (evalExp exp vrBuiltInDict)
+
+fromLExpr :: LExpr -> VExpression
+fromLExpr l = case l of
+	LInt v -> veInt v
+	LDouble v -> veDouble v
+	LRef v -> VRef v
+	LAbs a v -> veAbs a (fromLExpr v)
+	LApply a b -> VApply (fromLExpr a) (fromLExpr b)
