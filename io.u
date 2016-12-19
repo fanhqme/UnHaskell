@@ -1,4 +1,4 @@
-((import str)
+(
 
 ;impl helpers
 (let readIfF (\handle\condition

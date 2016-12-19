@@ -1,3 +1,3 @@
-((module str)
+(
 (def isDigit (\x (and (>= x '0') (<= x '9'))))
 )

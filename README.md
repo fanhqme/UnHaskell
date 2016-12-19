@@ -1,13 +1,34 @@
-# Lispakell
+UnHaskell
+=============
 
-Aimed at being an interpreter written in Haskell for a Lisp-like launguage that performs untyped lambda calculus as in [Unlambda](https://en.wikipedia.org/wiki/Unlambda).
+UnHaskell is a LISP syntax Haskell-like [Unlambda](https://en.wikipedia.org/wiki/Unlambda) dialect. Started initially as a programming homework. Now development still in progress.
+The language takes the idea from Unlambda:
 
-Started initially as a programming homework. Now development still in progress.
+* (Almost) everything is function. Functions are of type function -> function (and hence have no type at all).
 
-The language features the following attributes:
+However, important language sugars and modifications are made:
 
-1. Untyped lambda calculus, in which every non-builtin things are of type function :: function -> function. True, False, lists and paris are all functions.
-2. Purity, referential transparency, lazy evaluation and monadic IO operation, as in Haskell. And even purer than Haskell: you can do nothing [strict](https://wiki.haskell.org/Performance/Strictness).
-3. Modules and imports
-4. Builtin multi-precision integer and double precision floating point numbers
-5. Standard library
+
+1. Lambda is introduced back, for the sake of any sane soul. A Lisp-style syntax is used. So I = ((S K) K).
+2. Pure functional design, with referential transparency, lazy evaluation and CPS IO operation. There is no [strictness](https://wiki.haskell.org/Performance/Strictness) nor [delayed](http://www.madore.org/~david/programs/unlambda/#delay) application.
+3. Module system, standard library and syntax sugar for CPS.
+
+Getting Started
+----------------
+
+currently, only a basic repl-interpreter is implemented.
+```
+$ghc urepl.hs
+$./urepl
+; type :q to quit, :? for help
+>(+ 3 1)
+4
+>(putChar 'a' (\_ (putChar '\n' exit)))
+a
+>:q
+```
+
+Language Specification
+----------------
+
+TODO

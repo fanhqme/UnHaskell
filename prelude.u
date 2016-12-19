@@ -1,4 +1,8 @@
 (
+; for historical pleasure
+(def S (\x y a ((x a) (y a))))
+(def K (\x y x))
+
 (def id (\x x))
 (def recur (\x (x x)))
 
@@ -16,8 +20,8 @@
 (def snd False)
 
 ; the List protocol:   (l null_value (\head\tail list_value))
-(def empty fst)
 (def cons (\x\xs\f\g (g x xs)))
+(def empty fst)
 (def foldl (\f \x0 (\recur (\g (\l
 	(l x0 (\x\xs
 		(f x (g xs))
@@ -34,4 +38,11 @@
 
 ; numeric utils
 (def neg (- 0))
+
+; filename
+(def fileName (recur \f (\name
+	(name consFileName)
+	(\h r ((f r) h))
+)))
+
 )
