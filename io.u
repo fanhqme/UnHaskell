@@ -1,7 +1,7 @@
 (
-
+(import str)
 ;impl helpers
-(let readIfF (\handle\condition
+(let readIfF (\handle condition
 	(do
 		(c (peekCharF handle))
 		(if (condition c)
@@ -13,27 +13,51 @@
 		)
 	)
 ))
-(let readWhileF (\handle\condition (recur \r
+(let readWhileF (\handle condition (recur (\r
 	(do
 		(c_m (readIfF handle condition))
 		(c_m
-			(return [])
+			(return empty)
 			(\c (run
 				(remain r)
 				(return (cons c remain))
 			))
 		)
 	)
-)))
+))))
 
-; the numerics
+; input
 (def readIntF (\handle
 	(do
 		(sign_m (readIfF handle (== '-')))
 		(let sign (sign_m 1 (neg 1)))
 		(numbers_c (readWhileF handle str.isDigit))
-		(let numbers (atoi numbers_c))
+		(let numbers (str.atoi numbers_c))
 		(return (* sign numbers))
 	)
 ))
+(def readInt (readIntF 0))
+
+; output
+(def putStrF (\handle (recur (\f (\s (do
+	(s (return 0) (\h r (
+		putCharF handle h (\x
+			((/= x 0) (return x)
+			(f r return)
+			)
+		)
+	)))
+))))))
+(def putStrLnF (\handle (\r
+	(do
+		(r1 (putStrF handle r))
+		((/= r1 0)
+			(return r1)
+			(putCharF handle 10 return)
+		)
+	)
+)))
+	
+(def putStr (putStrF 1))
+(def putStrLn (putStrLnF 1))
 )

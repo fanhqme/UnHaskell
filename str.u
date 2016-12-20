@@ -1,3 +1,12 @@
 (
 (def isDigit (\x (and (>= x '0') (<= x '9'))))
+(def intFromDigit (\x (- x '0')))
+(def atoi (recur (\f (\y x
+	(x
+		y
+		(\h r (f (+ (* y 10) (intFromDigit h)) r)))))
+ 0)
+)
+(def itoa id)
+
 )

@@ -1,10 +1,11 @@
 (
-(import io)
+(import qualified io)
+(import qualified str)
 (def main (run
 	(a io.readInt)
 	(b io.readInt)
 	(let c (+ a b))
-	(_ (io.putStrLn (show c)))
+	(_ (io.putStrLn (str.itoa c)))
 	(exit 0)
 ))
 )

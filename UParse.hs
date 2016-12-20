@@ -16,7 +16,7 @@ instance Show STokenTree where
 
 data SSExp = SSInt Int | SSDouble Double | SSLambda [Char] (SSExp,SPosition) | SSRef [Char] | SSApply (SSExp,SPosition) (SSExp,SPosition)
 data SVisibility = SVLocal | SVGlobal deriving Show
-data SImportMode = SIQualified | SIUnqualified deriving Show
+data SImportMode = SIQualified | SIUnqualified deriving (Show,Eq)
 data SSImport = SSImport [Char] SImportMode deriving Show
 data SSDef = SSDef [Char] (SSExp,SPosition) SVisibility deriving Show
 data SSModule = SSModule [(SSImport,SPosition)] [(SSDef,SPosition)] deriving Show
@@ -190,6 +190,8 @@ parseSSExp (tree,sp) = case tree of
 	STTList (((STTNode (STAtom "lambda")),p):r) -> constructLambdaSugar r p
 	STTList (((STTNode (STAtom "list")),p):[]) -> SFail "list expression must not be empty" p
 	STTList (((STTNode (STAtom "list")),p):r) -> constructListSugar r p
+	STTList (((STTNode (STAtom "run")),p):r) -> constructRunSugar r p
+	STTList (((STTNode (STAtom "do")),p):r) -> constructDoSugar r p
 	STTList [] -> SFail "empty expression" sp
 	STTList (_:[]) -> SFail "extra parenthesis" sp
 	STTList (f:r) -> do
@@ -217,6 +219,20 @@ parseSSExp (tree,sp) = case tree of
 		constructApplySugar (f:r) (e,p) = do
 			(e1,p1) <- parseSSExp f
 			constructApplySugar r ((SSApply (e,p) (e1,p1)),p)
+		constructDoSugar r p = do
+			(e1,p1) <- constructRunSugar r p
+			return (SSLambda "return" (e1,p1),p)
+		constructRunSugar [] p = SFail "empty do/run clause" p
+		constructRunSugar (h:[]) p = parseSSExp h
+		constructRunSugar ((STTList [(STTNode (STAtom "let"),p0),(STTNode (STAtom name),_),e],p_0):r) p = do
+			(e1,p1) <- parseSSExp e
+			(e2,p2) <- constructRunSugar r p
+			return (SSApply (SSLambda name (e2,p2),p_0) (e1,p1),p0)
+		constructRunSugar ((STTList [(STTNode (STAtom name),p0),e],_):r) p = do
+			(e1,p1) <- parseSSExp e
+			(e2,p2) <- constructRunSugar r p
+			return (SSApply (e1,p1) (SSLambda name (e2,p2),p0),p0)
+		constructRunSugar ((_,p1):r) p = SFail "invalid statement in do/run clause" p1
 
 parseSSModule :: (STokenTree,SPosition) -> SMayFail (SSModule,SPosition)
 parseSSModule (STTNode _,p) = SFail "program must start with (" p
@@ -225,7 +241,7 @@ parseSSModule (STTList trees,p) = do
 	(sdefs,others2) <- getDefBlock others1
 	(case others2 of
 		[] -> SSucc ((SSModule simports sdefs),p)
-		r -> SFail ("illegal declaration "++(show r)) (snd (head r))
+		r -> SFail ("illegal declaration") (snd (head r))
 		) where
 		getImportBlock blocks = case blocks of
 			[] -> SSucc ([],[])
@@ -257,3 +273,4 @@ extractLExpr s = case s of
 	(SSApply (v1,_) (v2,_)) -> LApply (extractLExpr v1) (extractLExpr v2)
 
 parseLExprStr a = (groupStrings $ annotatePositions a) >>= groupTokenTree >>= parseSSExp >>= (return . extractLExpr.fst)
+parseSSModuleStr a = (groupStrings $ annotatePositions a) >>= groupTokenTree >>= parseSSModule >>= (return . fst)

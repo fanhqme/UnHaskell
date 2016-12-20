@@ -3,7 +3,6 @@ module UEnvironment where
 import System.IO
 import System.Environment
 import Data.Char
-import qualified Data.Map as Map
 
 class UEnv e where
 	eExit :: Int -> e ()
@@ -124,6 +123,7 @@ initRealWorldEnv = URealWorldEnv (\oldstate ->
 	listjoin s [] = []
 	listjoin s (a:[]) = a
 	listjoin s (a:ar) = a++(s:(listjoin s ar))
+runRealWorld :: URealWorldEnv a -> IO ()
 runRealWorld a = (runRealWorldEnv (initRealWorldEnv >> a) (UFileList [] [])) >>= (\(exitstate,_) ->
 		case exitstate of
 			UFinished 0 -> return ()

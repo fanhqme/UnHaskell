@@ -62,7 +62,7 @@ veCons = VClean vCons
 veEmpty = VClean vEmpty
 boolValue :: Bool -> Value
 boolValue True = vTrue
-boolValue False = vTrue
+boolValue False = vFalse
 
 veInt a=VClean (VBuiltin (BNumVal (BInt a)))
 veDouble a=VClean (VBuiltin (BNumVal (BFloat a)))
@@ -79,8 +79,8 @@ vBuiltInList=[
 	(">=", (VCompFunc (VComp BNLe))),
 	(">", (VCompFunc (VComp BGe))),
 	("<=", (VCompFunc (VComp BNGe))),
-	("/=", (VCompFunc (VComp BEq))),
-	("==", (VCompFunc (VComp BNEq))),
+	("/=", (VCompFunc (VComp BNEq))),
+	("==", (VCompFunc (VComp BEq))),
 	("exit", (VSys (VExit))),
 	("open", (VSys (VOpen))),
 	("close", (VSys (VClose))),
@@ -103,7 +103,7 @@ applyFunc :: BoundValue -> VResult -> VResult
 applyFunc ((VBuiltin a),ca) br = (case br of
 	(VException e) -> VException e
 	(VGood (VBuiltin b,_)) -> bValToVResult (applyBVal  a b)
-	(VGood _) -> VException ("cannot feed non-builtin value to builtin value "++(show a))
+	(VGood x) -> VException ("cannot feed non-builtin value to builtin value "++(show a))
 	)where
 		bValToVResult (BException e) = VException e
 		bValToVResult (BClean v) = VGood (VBuiltin v,emptyContext)
