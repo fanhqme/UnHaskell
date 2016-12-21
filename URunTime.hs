@@ -4,6 +4,7 @@ import qualified Data.Map as Map
 import UData
 import UEnvironment
 import ULambdaExpression
+import Control.Monad.Trans.Class
 
 data VComp = VComp BCompType | VComp1 BCompType BNum deriving Show
 data VSysCall = VExit | VExit1 Int | VOpen | VOpen1 [Int] | VOpen2 [Int] Int | VOpen3 [Int] Int VResult | VClose | VClose1 Int | VClose2 Int VResult | VGetChar | VGetChar1 Int | VGetChar2 Int VResult | VPeekChar | VPeekChar1 Int | VPeekChar2 Int VResult | VPutChar | VPutChar1 Int | VPutChar2 Int Int | VPutChar3 Int Int VResult | VGetArg | VGetArg1 VResult deriving Show
@@ -80,7 +81,7 @@ vBuiltInList=[
 	(">", (VCompFunc (VComp BGe))),
 	("<=", (VCompFunc (VComp BNGe))),
 	("/=", (VCompFunc (VComp BNEq))),
-	("==", (VCompFunc (VComp BEq))),
+	("=", (VCompFunc (VComp BEq))),
 	("exit", (VSys (VExit))),
 	("open", (VSys (VOpen))),
 	("close", (VSys (VClose))),
@@ -176,24 +177,6 @@ feedVResult :: VResult -> VExpression -> VResult
 feedVResult (VException e) _ = (VException e)
 feedVResult (VGood (cont,context)) val = evalExp (VApply (VClean cont) val) context
 
-executeVResult :: (UEnv e) => (Monad e) => VResult -> e ()
-executeVResult vr = case vr of
-	VException e -> eException e
-	VGood (val,context) -> (case val of
-		(VSys (VExit1 e)) -> eExit e
-		(VSys (VOpen3 f m cont)) -> (eOpen f m) >>= (\retval -> (executeVResult (feedVResult cont (veInt retval))))
-		(VSys (VClose2 f cont)) -> (eClose f) >>= (\retval -> (executeVResult (feedVResult cont (veInt retval))))
-		(VSys (VPutChar3 f c cont)) -> (ePutChar f c) >>= (\retval -> (executeVResult (feedVResult cont (veInt retval))))
-		(VSys (VGetChar2 f cont)) -> (eGetChar f) >>= (\retval -> (executeVResult (feedVResult cont (veInt retval))))
-		(VSys (VPeekChar2 f cont)) -> (ePeekChar f) >>= (\retval -> (executeVResult (feedVResult cont (veInt retval))))
-		(VSys (VGetArg1 cont)) -> eGetArg >>= (\retval -> (executeVResult (feedVResult cont (veInt retval))))
-		(VSys s) -> eException ("insufficient syscall args in "++(show s))
-		r -> eReturnResult (showValue r)
-		-- r -> eException "evaluated to non-builtin type"
-		)
-executeVExp :: (UEnv e) => (Monad e) => VExpression -> e()
-executeVExp exp = executeVResult (evalExp exp vrBuiltInDict)
-
 fromLExpr :: LExpr -> VExpression
 fromLExpr l = case l of
 	LInt v -> veInt v
@@ -201,3 +184,20 @@ fromLExpr l = case l of
 	LRef v -> VRef v
 	LAbs a v -> veAbs a (fromLExpr v)
 	LApply a b -> VApply (fromLExpr a) (fromLExpr b)
+
+executeVResult :: (UEnv e) => (Monad e) => VResult -> UEvalEnv (Value,VContext) e ()
+executeVResult vr = case vr of
+	VException e -> eException e
+	VGood (val,context) -> case val of
+		(VSys (VExit1 e)) -> eExit e
+		(VSys (VOpen3 f m cont)) -> (lift$eOpen f m) >>= (\retval -> (executeVResult (feedVResult cont (veInt retval))))
+		(VSys (VClose2 f cont)) -> (lift$eClose f) >>= (\retval -> (executeVResult (feedVResult cont (veInt retval))))
+		(VSys (VPutChar3 f c cont)) -> (lift$ePutChar f c) >>= (\retval -> (executeVResult (feedVResult cont (veInt retval))))
+		(VSys (VGetChar2 f cont)) -> (lift$eGetChar f) >>= (\retval -> (executeVResult (feedVResult cont (veInt retval))))
+		(VSys (VPeekChar2 f cont)) -> (lift$ePeekChar f) >>= (\retval -> (executeVResult (feedVResult cont (veInt retval))))
+		(VSys (VGetArg1 cont)) -> (lift$eGetArg) >>= (\retval -> (executeVResult (feedVResult cont (veInt retval))))
+		(VSys s) -> eException ("insufficient syscall args in "++(show s))
+		_ -> eReturnResult (val,context)
+
+executeVExp :: (UEnv e) => (Monad e) => VExpression -> UEvalEnv (Value,VContext) e ()
+executeVExp exp = executeVResult (evalExp exp vrBuiltInDict)

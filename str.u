@@ -1,5 +1,5 @@
-(
 (def isDigit (\x (and (>= x '0') (<= x '9'))))
+(def isSpace (\x (or (= x ' ') (or (= x '\t') (= x '\n')))))
 (def intFromDigit (\x (- x '0')))
 (def atoi (recur (\f (\y x
 	(x
@@ -8,5 +8,3 @@
  0)
 )
 (def itoa id)
-
-)

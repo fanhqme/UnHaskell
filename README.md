@@ -18,13 +18,11 @@ Getting Started
 
 U.hs conventionally assumes file extension .u. Example of helloworld.u:
 ```
-(
 (import io)
 (def main (run
 	(_ (io.putStrLn "hello world"))
 	(exit 0)
 	)
-)
 )
 ```
 The "run" statement is syntax sugar for chaining callbacks: (run (a b) (c d) e) = (b (\\a (d (\\c e)))). All io functions use callback to get the return value. Program starts at main in the main module. Sub-modules are loaded recursively by the import statements.

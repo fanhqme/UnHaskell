@@ -1,8 +1,5 @@
-(
 (import io)
-(def main (run
+(run
 	(_ (io.putStrLn "hello world"))
 	(exit 0)
-	)
-)
 )

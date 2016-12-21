@@ -38,7 +38,7 @@ showBCompType BLe = "<"
 showBCompType BGe = ">"
 showBCompType BNLe = ">="
 showBCompType BNGe = "<="
-showBCompType BEq = "=="
+showBCompType BEq = "="
 showBCompType BNEq = "/="
 
 applyBVal :: BValue -> BValue -> BResult

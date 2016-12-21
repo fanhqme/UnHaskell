@@ -24,7 +24,7 @@ defaultBuiltinNames = [
 	">",
 	"<=",
 	"/=",
-	"==",
+	"=",
 	"exit",
 	"open",
 	"close",

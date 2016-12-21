@@ -20,35 +20,34 @@ loadModule fname = readFile fname >>= (return . parseSSModuleStr)
 
 type MLocalLoadContext = (MLoadContext,Set.Set [Char])
 
+getLocalName modname a = " "++modname++"."++a
+mResolveNames :: [Char] -> (SSExp,SPosition) -> [[Char]] -> (Set.Set [Char]) -> (Set.Set [Char]) -> (Set.Set [Char]) -> MMayFail LExpr
+mResolveNames modname (e,p) revimports loaded locals c = case e of
+	(SSInt a) -> return (LInt a)
+	(SSDouble a) -> return (LDouble a)
+	(SSLambda a (e1,p1)) -> do
+		e2 <- mResolveNames modname (e1,p1) revimports loaded locals (Set.insert a c)
+		return (LAbs a e2)
+	(SSRef a)
+		| (Set.member a c) -> return$LRef a
+		| (Set.member a loaded) -> return$LRef a
+		| (Set.member a locals) -> return$LRef$getLocalName modname a
+		| (Set.member (modname++"."++a) loaded) -> return$LRef$(modname++"."++a)
+		| otherwise -> case (filter (\x -> (Set.member (x++"."++a) loaded)) revimports) of
+			[] -> MFail ("undefined symbol "++a) modname p
+			(x:_) -> return$LRef (x++"."++a)
+	(SSApply (e1,p1) (e2,p2)) -> do
+		re1 <- mResolveNames modname (e1,p1) revimports loaded locals c
+		re2 <- mResolveNames modname (e2,p2) revimports loaded locals c
+		return$LApply re1 re2
 mAddDef :: [Char] -> [[Char]] -> SSDef -> MLocalLoadContext -> MMayFail MLocalLoadContext
 mAddDef modname revimports (SSDef name (se,sp) vis) ((MLoadContext loaded curchain),locals) = do
-	e <- resolveNames (se,sp) (Set.fromList [])
+	e <- mResolveNames modname (se,sp) revimports loaded locals (Set.fromList [])
 	let (name2,locals2) = case vis of
-		SVLocal -> (getLocalName name,(Set.insert name locals))
+		SVLocal -> (getLocalName modname name,(Set.insert name locals))
 		SVGlobal -> (modname++"."++name,(Set.delete name locals))
 	let loaded2 = Set.insert name2 loaded
 	return$(MLoadContext (loaded2) ((name2,e):curchain),locals2)
-	where
-		getLocalName a = " "++modname++"."++a
-		resolveNames :: (SSExp,SPosition) -> (Set.Set [Char]) -> MMayFail LExpr
-		resolveNames (e,p) c = case e of
-			(SSInt a) -> return (LInt a)
-			(SSDouble a) -> return (LDouble a)
-			(SSLambda a (e1,p1)) -> do
-				e2 <- resolveNames (e1,p1) (Set.insert a c)
-				return (LAbs a e2)
-			(SSRef a)
-				| (Set.member a c) -> return$LRef a
-				| (Set.member a loaded) -> return$LRef a
-				| (Set.member a locals) -> return$LRef$getLocalName a
-				| (Set.member (modname++"."++a) loaded) -> return$LRef$(modname++"."++a)
-				| otherwise -> case (filter (\x -> (Set.member (x++"."++a) loaded)) revimports) of
-					[] -> MFail ("undefined symbol "++a) modname p
-					(x:_) -> return$LRef (x++"."++a)
-			(SSApply (e1,p1) (e2,p2)) -> do
-				re1 <- resolveNames (e1,p1) c
-				re2 <- resolveNames (e2,p2) c
-				return$LApply re1 re2
 mAddDefs :: [Char] -> [[Char]] -> [SSDef] -> MLocalLoadContext -> MMayFail MLocalLoadContext
 mAddDefs modname revimports defs c = case defs of
 	[] -> return c

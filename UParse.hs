@@ -158,26 +158,37 @@ groupStrings = (\x -> (dropWhiteSpace x) >>= groupStrings') where
 		remain <- groupStrings r
 		return (f:remain)
 
-groupTokenTree :: [(SToken,SPosition)] -> SMayFail (STokenTree,SPosition)
-groupTokenTree [] = SFail "empty file" (0,0)
-groupTokenTree a = (groupTokenTree' a) >>= (\(r,remain) -> case remain of
-	[] -> SSucc r
-	((_,p)):_ -> SFail "extra tokens at end of file" p
-	) where
-	groupTokenTree' a = case a of
-		((SLeftPar,p):r) -> do
-			(trees,remain) <- groupUntilRightPar r p
-			if null trees then SFail "empty ()" p else
-				return (((STTList trees),p),remain)
-		((SRightPar,p):r) -> SFail "unmatched )" p
-		((ah,p):r) -> return (((STTNode ah),p),r)
-	groupUntilRightPar a sp = case a of
-		[] -> SFail "unmatched (" sp
-		((SRightPar,_):r) -> return ([],r)
+firstTokenTree :: [(SToken,SPosition)] -> SMayFail ((STokenTree,SPosition),[(SToken,SPosition)])
+firstTokenTree a = case a of
+	((SLeftPar,p):r) -> do
+		(trees,remain) <- groupUntilRightPar r p
+		if null trees then SFail "empty ()" p else
+			return (((STTList trees),p),remain)
+	((SRightPar,p):r) -> SFail "unmatched )" p
+	((ah,p):r) -> return (((STTNode ah),p),r)
+	where
+		groupUntilRightPar a sp = case a of
+			[] -> SFail "unmatched (" sp
+			((SRightPar,_):r) -> return ([],r)
+			_ -> do
+				(t,rr) <- firstTokenTree a
+				(ts,rrr) <- groupUntilRightPar rr sp
+				return ((t:ts),rrr)
+singleTokenTree a = do
+	case a of
+		[] -> SFail "empty line" (0,0)
 		_ -> do
-			(t,rr) <- groupTokenTree' a
-			(ts,rrr) <- groupUntilRightPar rr sp
-			return ((t:ts),rrr)
+			(t,r) <- firstTokenTree a
+			case r of
+				[] -> SSucc t
+				((_,p):r) -> SFail "extra token" p
+groupTokenTree :: [(SToken,SPosition)] -> SMayFail [(STokenTree,SPosition)]
+groupTokenTree a = case a of
+	[] -> SSucc []
+	_ -> do
+		(tt,remain) <- (firstTokenTree a)
+		rt <- groupTokenTree remain
+		return (tt:rt)
 
 parseSSExp :: (STokenTree,SPosition) -> SMayFail (SSExp,SPosition)
 parseSSExp (tree,sp) = case tree of
@@ -234,13 +245,15 @@ parseSSExp (tree,sp) = case tree of
 			return (SSApply (e1,p1) (SSLambda name (e2,p2),p0),p0)
 		constructRunSugar ((_,p1):r) p = SFail "invalid statement in do/run clause" p1
 
-parseSSModule :: (STokenTree,SPosition) -> SMayFail (SSModule,SPosition)
-parseSSModule (STTNode _,p) = SFail "program must start with (" p
-parseSSModule (STTList trees,p) = do
+parseSSModule :: [(STokenTree,SPosition)] -> SMayFail SSModule
+parseSSModule trees = do
 	(simports,others1) <- getImportBlock trees
 	(sdefs,others2) <- getDefBlock others1
 	(case others2 of
-		[] -> SSucc ((SSModule simports sdefs),p)
+		[] -> return (SSModule simports sdefs)
+		((e,p):[]) -> do
+			(e1,p1) <- parseSSExp (e,p)
+			return (SSModule simports (sdefs++[((SSDef "main" (e1,p1) SVGlobal),p)]))
 		r -> SFail ("illegal declaration") (snd (head r))
 		) where
 		getImportBlock blocks = case blocks of
@@ -272,5 +285,6 @@ extractLExpr s = case s of
 	(SSRef v) -> LRef v
 	(SSApply (v1,_) (v2,_)) -> LApply (extractLExpr v1) (extractLExpr v2)
 
-parseLExprStr a = (groupStrings $ annotatePositions a) >>= groupTokenTree >>= parseSSExp >>= (return . extractLExpr.fst)
-parseSSModuleStr a = (groupStrings $ annotatePositions a) >>= groupTokenTree >>= parseSSModule >>= (return . fst)
+parseSTokenTreeStr a = (groupStrings $ annotatePositions a) >>= singleTokenTree
+parseLExprStr a = parseSTokenTreeStr a >>= parseSSExp >>= (return . extractLExpr.fst)
+parseSSModuleStr a = (groupStrings $ annotatePositions a) >>= groupTokenTree >>= parseSSModule

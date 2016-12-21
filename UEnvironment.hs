@@ -3,11 +3,12 @@ module UEnvironment where
 import System.IO
 import System.Environment
 import Data.Char
+import Control.Monad.Trans.Class
 
 class UEnv e where
-	eExit :: Int -> e ()
-	eException :: [Char] -> e ()
-	eReturnResult :: [Char] -> e ()
+	-- eExit :: Int -> e ()
+	-- eException :: [Char] -> e ()
+	-- eReturnResult :: [Char] -> e ()
 	eOpen :: [Int] -> Int -> e Int
 	eClose :: Int -> e Int
 	eGetChar :: Int -> e Int
@@ -15,11 +16,32 @@ class UEnv e where
 	ePutChar :: Int -> Int -> e Int
 	eGetArg :: e Int
 
-efOpenModes = [ReadMode,WriteMode,AppendMode,ReadWriteMode]
--- currently, only r and w are supported
+data UEvalResult r a = URunning a | UExited Int | UExceptionHappened [Char] | UResultReturned r
+newtype UEvalEnv r e a = UEvalEnv {runUEvalEnv :: e (UEvalResult r a)}
 
-data UFinishState a = URunning a | UFinished Int | UExceptionHappened [Char] | UResultReturned [Char] deriving Show
-data UFileList h = UFileList {flFiles::[Maybe h],flArgToRead::[Int]} deriving Show
+instance (Monad e) => Monad (UEvalEnv r e) where
+	(UEvalEnv f) >>= g = UEvalEnv (f >>= (\ret -> case (ret) of
+		URunning a -> runUEvalEnv (g a)
+		UExited a -> return$UExited a
+		UExceptionHappened a -> return$UExceptionHappened a
+		UResultReturned a -> return$UResultReturned a
+		))
+	return a = UEvalEnv (return (URunning a))
+instance MonadTrans (UEvalEnv r) where
+-- f :: e a
+-- need: UEvalEnv r e a
+	lift f = UEvalEnv (f >>= (\a -> return$URunning a))
+
+eExit :: (Monad e) => Int -> UEvalEnv r e ()
+eExit a = UEvalEnv (return (UExited a))
+eException :: (Monad e) => [Char] -> UEvalEnv r e ()
+eException a = UEvalEnv (return (UExceptionHappened a))
+eReturnResult :: (Monad e) => r -> UEvalEnv r e ()
+eReturnResult a = UEvalEnv (return (UResultReturned a))
+
+efOpenModes = [ReadMode,WriteMode,AppendMode,ReadWriteMode]
+
+data UFileList h = UFileList [Maybe h] [Int] deriving Show
 
 flAddHandle :: h -> UFileList h -> (Int,UFileList h)
 flAddHandle h (UFileList hdls args) = findEmptySlot hdls id 0 where
@@ -40,95 +62,75 @@ flGetArg (UFileList hdls []) = ((-1),UFileList hdls [])
 flGetArg (UFileList hdls (a:ar)) = (a,UFileList hdls ar)
 
 
-newtype URealWorldEnv a = URealWorldEnv {runRealWorldEnv :: UFileList Handle ->IO (UFinishState a,UFileList Handle)}
+newtype URealWorldEnv a = URealWorldEnv {runRealWorldEnv :: UFileList Handle ->IO (a,UFileList Handle)}
 
 instance Monad URealWorldEnv where
-	-- f ::  UFileList -> IO (UFinishState a,UFileList)
-	-- g :: a -> URealWorldEnv (UFileList -> IO (UFinishState b,UFileList))
 	(URealWorldEnv f) >>= g = URealWorldEnv (\initfiles -> 
-			(f initfiles) >>= (\(finishstate1,files1) ->
-				case finishstate1 of
-					UFinished r -> return (UFinished r ,files1)
-					UExceptionHappened e -> return (UExceptionHappened e,files1)
-					UResultReturned e -> return (UResultReturned e,files1)
-					URunning va -> runRealWorldEnv (g va) files1
-			)
-		)
+			((f initfiles) >>= (\(va,files1) -> runRealWorldEnv (g va) files1)))
 	f >> g = (f >>= (const g))
-	return a = URealWorldEnv (\f -> return (URunning a,f))
+	return a = URealWorldEnv (\f -> return (a,f))
 
 isValidCharInt :: Int -> Bool
 isValidCharInt a = (a>=0 && a<1114112)
 
 instance UEnv URealWorldEnv where
-	eExit retval = URealWorldEnv (\initfiles ->
-		return (UFinished retval,initfiles))
-	eException msg = URealWorldEnv (\initfiles ->
-		return (UExceptionHappened msg,initfiles))
-	eReturnResult msg = URealWorldEnv (\initfiles ->
-		return (UResultReturned msg,initfiles))
 	eOpen filename mode = URealWorldEnv (\initfiles ->
 		if (mode>=0 && mode<=length efOpenModes) then
-			return (URunning (-2),initfiles)
+			return ((-2),initfiles)
 		else if (any (not.isValidCharInt) filename) then
-			return (URunning (-3),initfiles)
+			return ((-3),initfiles)
 		else
 			(openFile (map chr filename) (efOpenModes!!mode) >>=
 				(\handle -> ( let (fno,files1) = flAddHandle handle initfiles in
-					return (URunning fno,files1)
+					return (fno,files1)
 				)))
 		)
 	eClose fno = URealWorldEnv (\initfiles ->
 		case (flGetHandle fno initfiles) of
-			Nothing -> return (URunning (-2),initfiles)
+			Nothing -> return ((-2),initfiles)
 			Just hdl -> ( hClose hdl >> (
-				return (URunning 0,(flCloseHandle fno initfiles))
+				return (0,(flCloseHandle fno initfiles))
 				))
 		)
 	eGetChar fno = URealWorldEnv (\initfiles ->
 		case (flGetHandle fno initfiles) of
-			Nothing -> return (URunning (-2),initfiles)
+			Nothing -> return ((-2),initfiles)
 			Just hdl -> (hIsEOF hdl) >>= (\iseof -> case iseof of
-				False -> hGetChar hdl >>= (\c ->return (URunning (ord c),initfiles))
-				True -> return (URunning (-1),initfiles)
+				False -> hGetChar hdl >>= (\c ->return ((ord c),initfiles))
+				True -> return ((-1),initfiles)
 				)
 		)
 	ePeekChar fno = URealWorldEnv (\initfiles ->
 		case (flGetHandle fno initfiles) of
-			Nothing -> return (URunning (-2),initfiles)
+			Nothing -> return ((-2),initfiles)
 			Just hdl -> (hIsEOF hdl) >>= (\iseof -> case iseof of
-				False -> hLookAhead hdl >>= (\c -> return (URunning (ord c),initfiles))
-				True -> return (URunning (-1),initfiles)
+				False -> hLookAhead hdl >>= (\c -> return ((ord c),initfiles))
+				True -> return ((-1),initfiles)
 				)
 		)
 	ePutChar fno content = URealWorldEnv (\initfiles ->
 		if isValidCharInt content then
 			case (flGetHandle fno initfiles) of
-				Nothing -> return (URunning (-2),initfiles)
+				Nothing -> return ((-2),initfiles)
 				Just hdl -> ( hPutChar hdl (chr content) >> (
-					return (URunning (0),initfiles)
+					return ((0),initfiles)
 					))
 		else
-			return (URunning (-3),initfiles)
+			return ((-3),initfiles)
 		)
 	eGetArg = URealWorldEnv (\initfiles ->
 		let (ret,files1)=flGetArg initfiles in
-		return (URunning ret,files1)
+		return (ret,files1)
 		)
 
+initRealWorldEnv :: URealWorldEnv ()
 initRealWorldEnv = URealWorldEnv (\oldstate -> 
 	getArgs >>= (\args ->
 		let iargs = listjoin (-1) (map (map ord) args) in
-			return (URunning (),UFileList [Just stdin,Just stdout] iargs))) where
+			return ((),UFileList [Just stdin,Just stdout] iargs))) where
 	listjoin s [] = []
 	listjoin s (a:[]) = a
 	listjoin s (a:ar) = a++(s:(listjoin s ar))
-runRealWorld :: URealWorldEnv a -> IO ()
-runRealWorld a = (runRealWorldEnv (initRealWorldEnv >> a) (UFileList [] [])) >>= (\(exitstate,_) ->
-		case exitstate of
-			UFinished 0 -> return ()
-			UFinished a -> putStrLn ("exit with code "++show a)
-			UExceptionHappened e -> putStrLn ("Exception: " ++ e)
-			UResultReturned e -> putStrLn e
-			URunning _ -> putStrLn "execution interupted"
-	)
+
+runRealWorld :: URealWorldEnv a -> IO a
+runRealWorld f = (runRealWorldEnv (initRealWorldEnv>>f)) (UFileList [] []) >>= (return.fst)

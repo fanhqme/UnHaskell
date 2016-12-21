@@ -1,4 +1,3 @@
-(
 (import str)
 ;impl helpers
 (let readIfF (\handle condition
@@ -6,7 +5,7 @@
 		(c (peekCharF handle))
 		(if (condition c)
 			(run
-				(_ getCharF)  ; must be c
+				(_ (getCharF handle))  ; must be c
 				(return (just c))
 			)
 			(return nothing)
@@ -29,7 +28,8 @@
 ; input
 (def readIntF (\handle
 	(do
-		(sign_m (readIfF handle (== '-')))
+		(_ (readWhileF handle str.isSpace))
+		(sign_m (readIfF handle (= '-')))
 		(let sign (sign_m 1 (neg 1)))
 		(numbers_c (readWhileF handle str.isDigit))
 		(let numbers (str.atoi numbers_c))
@@ -60,4 +60,3 @@
 	
 (def putStr (putStrF 1))
 (def putStrLn (putStrLnF 1))
-)
