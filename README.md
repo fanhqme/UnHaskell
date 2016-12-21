@@ -1,7 +1,7 @@
-UnHaskell
+U.hs
 =============
 
-UnHaskell is a LISP syntax [Unlambda](https://en.wikipedia.org/wiki/Unlambda) implementation written in Haskell. Started initially as a programming homework. Now development still in progress.
+U.hs is a LISP syntax [Unlambda](https://en.wikipedia.org/wiki/Unlambda) implementation written in Haskell. Started initially as a programming homework. Now development still in progress.
 The language takes the idea from Unlambda:
 
 * (Almost) everything is function. Functions are of type function -> function (and hence have no type at all).
@@ -16,7 +16,7 @@ However, important language sugars and modifications are made:
 Getting Started
 ----------------
 
-The language (tentatively called UL) conventionally assumes file extension .u. Example of helloworld.u:
+U.hs conventionally assumes file extension .u. Example of helloworld.u:
 ```
 (
 (import io)
@@ -29,7 +29,7 @@ The language (tentatively called UL) conventionally assumes file extension .u. E
 ```
 The "run" statement is syntax sugar for chaining callbacks: (run (a b) (c d) e) = (b (\\a (d (\\c e)))). All io functions use callback to get the return value. Program starts at main in the main module. Sub-modules are loaded recursively by the import statements.
 
-To interpretively run the program, the urun utility can be used.
+To interpretively run the program call urun
 ```
 $ghc urun.hs
 $./urun helloworld.u
