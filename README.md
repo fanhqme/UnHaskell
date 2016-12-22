@@ -17,9 +17,9 @@ Getting Started
 
 U.hs uses file extension .u. Example of helloworld.u:
 ```
-(import io)
+(import* io)
 (def main (run
-	(_ (io.putStrLn "hello world"))
+	(_ (putStrLn "hello world"))
 	(exit 0)
 	)
 )
@@ -37,12 +37,15 @@ A basic repl calculator is also included.
 ```
 $runghc urepl.hs
 ; type :q to quit, :? for help
->(+ 3 1)
+prelude>(+ 3 1)
 4
->(putChar 'a' (\_ (putChar '\n' exit)))
-a
+prelude>(import* io)
+prelude io>(putStrLn "ha" print)
+ha
+0
 >:q
 ```
+Note that, "print" is just the identity function (\x x). When using it as a callback, the execution is terminated with result printed.
 
 Language Specification
 ----------------

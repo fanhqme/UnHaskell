@@ -1,7 +1,0 @@
-(import io)
-(import str)
-(run
-	(a io.readInt)
-	(b io.readInt)
-	(print (+ a b))
-)

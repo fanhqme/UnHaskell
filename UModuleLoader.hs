@@ -55,7 +55,8 @@ mAddDefs modname revimports defs c = case defs of
 
 
 addModuleFile :: ([Char],SPosition) -> [Char] -> [Char] -> MLoadContext -> IO (MMayFail MLoadContext)
-addModuleFile caller filename modname c = do
+addModuleFile caller filename modname c0 = do
+	let c = (\(MLoadContext loaded curchain) -> MLoadContext (Set.insert ("  "++modname) loaded) curchain) c0
 	hasfile <- doesFileExist filename
 	if (not hasfile) then (return$MFail ("cannot find "++filename) (fst caller) (snd caller)) else do
 		s_mod <- loadModule filename
@@ -73,7 +74,7 @@ addModuleFile caller filename modname c = do
 addImport :: ([Char],SPosition) -> [Char] -> MLoadContext -> IO (MMayFail MLoadContext)
 addImport caller modname c = let
 	(MLoadContext loaded curchain)=c in
-	if (Set.member modname loaded) then (return$return c) else
+	if (Set.member ("  "++modname) loaded) then (return$return c) else
 		addModuleFile caller (modname++".u") modname c
 
 addImports :: ([Char],SPosition) -> [[Char]] -> MLoadContext -> IO (MMayFail MLoadContext)

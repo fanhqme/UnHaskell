@@ -203,6 +203,7 @@ parseSSExp (tree,sp) = case tree of
 	STTList (((STTNode (STAtom "list")),p):r) -> constructListSugar r p
 	STTList (((STTNode (STAtom "run")),p):r) -> constructRunSugar r p
 	STTList (((STTNode (STAtom "do")),p):r) -> constructDoSugar r p
+	STTList (((STTNode (STAtom "let")),p):r) -> constructLetSugar r p
 	STTList [] -> SFail "empty expression" sp
 	STTList (_:[]) -> SFail "extra parenthesis" sp
 	STTList (f:r) -> do
@@ -243,7 +244,15 @@ parseSSExp (tree,sp) = case tree of
 			(e1,p1) <- parseSSExp e
 			(e2,p2) <- constructRunSugar r p
 			return (SSApply (e1,p1) (SSLambda name (e2,p2),p0),p0)
-		constructRunSugar ((_,p1):r) p = SFail "invalid statement in do/run clause" p1
+		constructRunSugar ((_,p1):r) p = SFail "invalid syntax in do/run clause" p1
+		constructLetSugar [] p = SFail "empty let clause" p
+		constructLetSugar (h:[]) p = parseSSExp h
+		constructLetSugar ((STTList [(STTNode (STAtom name),p0),e],_):r) p = do
+			(e1,p1) <- parseSSExp e
+			(e2,p2) <- constructLetSugar r p
+			return (SSApply (SSLambda name (e2,p2),p0) (e1,p1),p0)
+		constructLetSugar ((_,p1):_) _ = SFail "invalid syntax in let clause" p1
+
 
 parseSSModule :: [(STokenTree,SPosition)] -> SMayFail SSModule
 parseSSModule trees = do
@@ -258,10 +267,10 @@ parseSSModule trees = do
 		) where
 		getImportBlock blocks = case blocks of
 			[] -> SSucc ([],[])
-			((STTList [(STTNode (STAtom "import"),_),(STTNode (STAtom name),_)]),p1):r -> do
+			((STTList [(STTNode (STAtom "import*"),_),(STTNode (STAtom name),_)]),p1):r -> do
 				(sis,remain) <- getImportBlock r
 				return ((((SSImport name SIUnqualified),p1):sis),remain)
-			((STTList [(STTNode (STAtom "import"),_),(STTNode (STAtom "qualified"),_),(STTNode (STAtom name),_)]),p1):r -> do
+			((STTList [(STTNode (STAtom "import"),_),(STTNode (STAtom name),_)]),p1):r -> do
 				(sis,remain) <- getImportBlock r
 				return ((((SSImport name SIQualified),p1):sis),remain)
 			_ -> SSucc ([],blocks)

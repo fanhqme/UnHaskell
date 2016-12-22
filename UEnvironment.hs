@@ -3,6 +3,8 @@ module UEnvironment where
 import System.IO
 import System.Environment
 import Data.Char
+import System.Process
+import System.Exit
 import Control.Monad.Trans.Class
 
 class UEnv e where
@@ -15,6 +17,7 @@ class UEnv e where
 	ePeekChar :: Int -> e Int
 	ePutChar :: Int -> Int -> e Int
 	eGetArg :: e Int
+	eSystem :: [Int] -> e Int
 
 data UEvalResult r a = URunning a | UExited Int | UExceptionHappened [Char] | UResultReturned r
 newtype UEvalEnv r e a = UEvalEnv {runUEvalEnv :: e (UEvalResult r a)}
@@ -64,6 +67,9 @@ flGetArg (UFileList hdls (a:ar)) = (a,UFileList hdls ar)
 
 newtype URealWorldEnv a = URealWorldEnv {runRealWorldEnv :: UFileList Handle ->IO (a,UFileList Handle)}
 
+liftUR :: IO a -> URealWorldEnv a
+liftUR b = URealWorldEnv (\f -> (b>>=(\a -> return (a,f))))
+
 instance Monad URealWorldEnv where
 	(URealWorldEnv f) >>= g = URealWorldEnv (\initfiles -> 
 			((f initfiles) >>= (\(va,files1) -> runRealWorldEnv (g va) files1)))
@@ -75,7 +81,7 @@ isValidCharInt a = (a>=0 && a<1114112)
 
 instance UEnv URealWorldEnv where
 	eOpen filename mode = URealWorldEnv (\initfiles ->
-		if (mode>=0 && mode<=length efOpenModes) then
+		if (mode<0 || mode>=length efOpenModes) then
 			return ((-2),initfiles)
 		else if (any (not.isValidCharInt) filename) then
 			return ((-3),initfiles)
@@ -122,15 +128,25 @@ instance UEnv URealWorldEnv where
 		let (ret,files1)=flGetArg initfiles in
 		return (ret,files1)
 		)
+	eSystem cmd_int = URealWorldEnv (\initfiles -> do
+		if (all isValidCharInt cmd_int) then do
+			let cmd = map chr cmd_int
+			exit_code <- system cmd
+			case exit_code of
+				ExitSuccess -> return (0,initfiles)
+				ExitFailure a -> return (a,initfiles)
+		else
+			return ((-3),initfiles)
+		)
+			
 
-initRealWorldEnv :: URealWorldEnv ()
-initRealWorldEnv = URealWorldEnv (\oldstate -> 
-	getArgs >>= (\args ->
-		let iargs = listjoin (-1) (map (map ord) args) in
-			return ((),UFileList [Just stdin,Just stdout] iargs))) where
+initRealWorldEnv :: [[Char]] -> URealWorldEnv ()
+initRealWorldEnv args = URealWorldEnv (\oldstate -> 
+		let iargs = listjoin 0 (map (map ord) args) in
+			return ((),UFileList [Just stdin,Just stdout] iargs)) where
 	listjoin s [] = []
 	listjoin s (a:[]) = a
 	listjoin s (a:ar) = a++(s:(listjoin s ar))
 
-runRealWorld :: URealWorldEnv a -> IO a
-runRealWorld f = (runRealWorldEnv (initRealWorldEnv>>f)) (UFileList [] []) >>= (return.fst)
+runRealWorld :: [[Char]] -> URealWorldEnv a -> IO a
+runRealWorld args f = (runRealWorldEnv (initRealWorldEnv args>>f)) (UFileList [] []) >>= (return.fst)

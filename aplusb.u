@@ -1,0 +1,8 @@
+(import* io)
+(import* str)
+(run
+	(a readInt)
+	(b readInt)
+	(_ (putStrLn (itoa (+ a b))))
+	(exit 0)
+)

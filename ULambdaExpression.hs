@@ -26,7 +26,7 @@ defaultBuiltinNames = [
 	"/=",
 	"=",
 	"exit",
-	"open",
+	"openCmd",
 	"close",
 	"getChar",
 	"getCharF",
@@ -35,5 +35,6 @@ defaultBuiltinNames = [
 	"putChar",
 	"putCharF",
 	"getArg",
-	"consFileName"
+	"consFileName",
+	"systemCmd"
 	]

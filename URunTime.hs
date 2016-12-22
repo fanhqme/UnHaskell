@@ -7,7 +7,7 @@ import ULambdaExpression
 import Control.Monad.Trans.Class
 
 data VComp = VComp BCompType | VComp1 BCompType BNum deriving Show
-data VSysCall = VExit | VExit1 Int | VOpen | VOpen1 [Int] | VOpen2 [Int] Int | VOpen3 [Int] Int VResult | VClose | VClose1 Int | VClose2 Int VResult | VGetChar | VGetChar1 Int | VGetChar2 Int VResult | VPeekChar | VPeekChar1 Int | VPeekChar2 Int VResult | VPutChar | VPutChar1 Int | VPutChar2 Int Int | VPutChar3 Int Int VResult | VGetArg | VGetArg1 VResult deriving Show
+data VSysCall = VExit | VExit1 Int | VOpen | VOpen1 [Int] | VOpen2 [Int] Int | VOpen3 [Int] Int VResult | VClose | VClose1 Int | VClose2 Int VResult | VGetChar | VGetChar1 Int | VGetChar2 Int VResult | VPeekChar | VPeekChar1 Int | VPeekChar2 Int VResult | VPutChar | VPutChar1 Int | VPutChar2 Int Int | VPutChar3 Int Int VResult | VGetArg | VGetArg1 VResult | VSystem | VSystem1 [Int] | VSystem2 [Int] VResult deriving Show
 data Value = VBuiltin BValue | VAbs [Char] VExpression | VCompFunc VComp | VSys VSysCall  deriving Show
 data VExpression = VClean Value | VApply VExpression VExpression | VRef [Char]  deriving Show
 type VContext=Map.Map [Char] VResult
@@ -38,6 +38,9 @@ showVSysCall (VPutChar2 v a) = "(putChar "++(show v)++" "++(show a)++")"
 showVSysCall (VPutChar3 v a _) = "(putChar "++(show v)++" "++(show a)++" ...)"
 showVSysCall (VGetArg) = "getArg"
 showVSysCall (VGetArg1 _) = "(getArg ...)"
+showVSysCall (VSystem) = "system"
+showVSysCall (VSystem1 v) = "(system "++(showBValue (BIntList v))++")"
+showVSysCall (VSystem2 v _) = "(system "++(showBValue (BIntList v))++" ...)"
 
 showValue :: Value -> [Char]
 showValue (VBuiltin b) = showBValue b
@@ -83,7 +86,7 @@ vBuiltInList=[
 	("/=", (VCompFunc (VComp BNEq))),
 	("=", (VCompFunc (VComp BEq))),
 	("exit", (VSys (VExit))),
-	("open", (VSys (VOpen))),
+	("openCmd", (VSys (VOpen))),
 	("close", (VSys (VClose))),
 	("getChar", (VSys (VGetChar1 0))),
 	("getCharF", (VSys (VGetChar))),
@@ -92,6 +95,7 @@ vBuiltInList=[
 	("putChar", (VSys (VPutChar1 1))),
 	("putCharF", (VSys (VPutChar))),
 	("getArg", (VSys (VGetArg))),
+	("systemCmd", (VSys (VSystem))),
 	("consFileName", (VBuiltin (BIntList [])))
 	]
 
@@ -104,7 +108,7 @@ applyFunc :: BoundValue -> VResult -> VResult
 applyFunc ((VBuiltin a),ca) br = (case br of
 	(VException e) -> VException e
 	(VGood (VBuiltin b,_)) -> bValToVResult (applyBVal  a b)
-	(VGood x) -> VException ("cannot feed non-builtin value to builtin value "++(show a))
+	(VGood x) -> VException ("cannot feed non-builtin value to builtin value "++(showBValue a))
 	)where
 		bValToVResult (BException e) = VException e
 		bValToVResult (BClean v) = VGood (VBuiltin v,emptyContext)
@@ -120,48 +124,54 @@ applyFunc (VCompFunc (VComp1 c a),_) br = case br of
 applyFunc (VSys VExit,_) br = case br of
 						(VException e)                            -> VException e
 						(VGood ((VBuiltin (BNumVal (BInt b))),_)) -> VGood (VSys (VExit1 b),emptyContext)
-						_                                         -> VException "cannot call Exit with non-integer value"
+						_                                         -> VException "cannot call exit with non-integer value"
 applyFunc (VSys (VExit1 _),_) _ = VException "too many arguments given to syscall exit"
 applyFunc (VSys VOpen,_) br = case br of
 						(VException e)                      -> VException e
 						(VGood ((VBuiltin (BIntList b)),_)) -> VGood (VSys (VOpen1 b),emptyContext)
-						_                                   -> VException "cannot call Open with non-IntList filename"
+						_                                   -> VException "cannot call open with non-IntList filename"
 applyFunc (VSys (VOpen1 a),_) br = case br of
 						(VException e)                      -> VException e
 						(VGood ((VBuiltin (BNumVal (BInt b))),_)) -> VGood (VSys (VOpen2 a b),emptyContext)
-						_                                   -> VException "cannot call Open with non-integer mode"
+						_                                   -> VException "cannot call open with non-integer mode"
 applyFunc (VSys (VOpen2 a b),_) br = VGood (VSys (VOpen3 a b br),emptyContext)
 applyFunc (VSys (VOpen3 _ _ _),_) _ = VException "too many arguments given to syscall open"
 applyFunc (VSys VClose,_) br = case br of
 						(VException e)                            -> VException e
 						(VGood ((VBuiltin (BNumVal (BInt b))),_)) -> VGood (VSys (VClose1 b),emptyContext)
-						_                                         -> VException "cannot call Close with non-integer handle"
+						_                                         -> VException "cannot call close with non-integer handle"
 applyFunc (VSys (VClose1 a),_) br = VGood (VSys (VClose2 a br),emptyContext)
 applyFunc (VSys (VClose2 _ _),_) _ = VException "too many arguments given to syscall close"
 applyFunc (VSys VGetChar,_) br = case br of
 						(VException e)                            -> VException e
 						(VGood ((VBuiltin (BNumVal (BInt b))),_)) -> VGood (VSys (VGetChar1 b),emptyContext)
-						_                                         -> VException "cannot call GetChar with non-integer handle"
+						_                                         -> VException "cannot call getChar with non-integer handle"
 applyFunc (VSys (VGetChar1 a),_) br = VGood (VSys (VGetChar2 a br),emptyContext)
 applyFunc (VSys (VGetChar2 _ _),_) _ = VException "too many arguments given to syscall getChar"
 applyFunc (VSys VPeekChar,_) br = case br of
 						(VException e)                            -> VException e
 						(VGood ((VBuiltin (BNumVal (BInt b))),_)) -> VGood (VSys (VPeekChar1 b),emptyContext)
-						_                                         -> VException "cannot call PeekChar with non-integer handle"
+						_                                         -> VException "cannot call peekChar with non-integer handle"
 applyFunc (VSys (VPeekChar1 a),_) br = VGood (VSys (VPeekChar2 a br),emptyContext)
 applyFunc (VSys (VPeekChar2 _ _),_) _ = VException "too many arguments given to syscall peekChar"
 applyFunc (VSys VPutChar,_) br = case br of
 						(VException e)                            -> VException e
 						(VGood ((VBuiltin (BNumVal (BInt b))),_)) -> VGood (VSys (VPutChar1 b),emptyContext)
-						_                                         -> VException "cannot call PutChar with non-integer handle"
+						_                                         -> VException "cannot call putChar with non-integer handle"
 applyFunc (VSys (VPutChar1 a),_) br = case br of
 						(VException e)                            -> VException e
 						(VGood ((VBuiltin (BNumVal (BInt b))),_)) -> VGood (VSys (VPutChar2 a b),emptyContext)
-						_                                         -> VException "cannot call PutChar with non-integer handle"
+						_                                         -> VException "cannot call putChar with non-integer handle"
 applyFunc (VSys (VPutChar2 a b),_) br = VGood (VSys (VPutChar3 a b br),emptyContext)
 applyFunc (VSys (VPutChar3 _ _ _),_) _ = VException "too many arguments given to syscall putChar"
 applyFunc (VSys VGetArg,_) br = VGood (VSys (VGetArg1 br),emptyContext)
 applyFunc (VSys (VGetArg1 _),_) br = VException "too many arguments given to syscall getArgs"
+applyFunc (VSys VSystem,_) br = case br of
+						(VException e)                            -> VException e
+						(VGood ((VBuiltin (BIntList a)),_)) -> VGood (VSys (VSystem1 a),emptyContext)
+						_                                         -> VException "cannot call system with non-IntList command"
+applyFunc (VSys (VSystem1 a),_) br = VGood (VSys (VSystem2 a br),emptyContext)
+applyFunc (VSys (VSystem2 _ _),_) _ = VException "too many arguments given to syscall system"
 
 evalExp :: VExpression -> VContext -> VResult
 evalExp (VClean v) context = VGood (v,context)
@@ -196,7 +206,8 @@ executeVResult vr = case vr of
 		(VSys (VGetChar2 f cont)) -> (lift$eGetChar f) >>= (\retval -> (executeVResult (feedVResult cont (veInt retval))))
 		(VSys (VPeekChar2 f cont)) -> (lift$ePeekChar f) >>= (\retval -> (executeVResult (feedVResult cont (veInt retval))))
 		(VSys (VGetArg1 cont)) -> (lift$eGetArg) >>= (\retval -> (executeVResult (feedVResult cont (veInt retval))))
-		(VSys s) -> eException ("insufficient syscall args in "++(show s))
+		(VSys (VSystem2 a cont)) -> (lift$eSystem a) >>= (\retval -> (executeVResult (feedVResult cont (veInt retval))))
+		(VSys s) -> eException ("insufficient syscall args in "++(showVSysCall s))
 		_ -> eReturnResult (val,context)
 
 executeVExp :: (UEnv e) => (Monad e) => VExpression -> UEvalEnv (Value,VContext) e ()

@@ -1,10 +1,29 @@
 (def isDigit (\x (and (>= x '0') (<= x '9'))))
 (def isSpace (\x (or (= x ' ') (or (= x '\t') (= x '\n')))))
 (def intFromDigit (\x (- x '0')))
-(def atoi (recur (\f (\y x
-	(x
-		y
-		(\h r (f (+ (* y 10) (intFromDigit h)) r)))))
- 0)
-)
-(def itoa id)
+(def digitFromInt (+ '0'))
+(def atoi (\s (let
+	(atoiP (foldl (\t a (+ (* t 10) (intFromDigit a))) 0 ))
+	(s 0 (\h r (
+		(= h '-') (neg (atoiP r))
+		(atoiP s)
+	))))
+))
+(def itoa (\s (let
+	(itoaP (recur (\f (\tail x
+		((<= x 9) (cons (digitFromInt x) tail)
+			(f (cons (digitFromInt (% x 10)) tail) (/ x 10))
+		))) ""))
+	((>= s 0) (itoaP s)
+		(cons '-' (itoaP (neg s)))
+	))
+))
+(def splitStr (\d s (let
+	(appendHead (\a l (l (list (list a)) (\h r (cons (cons a h) r)))))
+	(foldr (\a r
+		((= a d) (cons empty r)
+			(appendHead a r)
+		)
+	) empty s)
+)))
+

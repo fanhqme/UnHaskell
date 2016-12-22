@@ -1,5 +1,5 @@
-(import io)
+(import* io)
 (run
-	(_ (io.putStrLn "hello world"))
+	(_ (putStrLn "hello world"))
 	(exit 0)
 )

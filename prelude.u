@@ -22,11 +22,25 @@
 ; the List protocol:   (l null_value (\head tail list_value))
 (def cons (\x xs f g (g x xs)))
 (def empty fst)
-(def foldl (\f x0 (\recur (\g (\l
+(def foldr (\f x0 (recur (\g (\l
 	(l x0 (\x xs
 		(f x (g xs))
-	))
-)))))
+	)))))
+))
+(def foldl (\f (recur (\g (\x0 l
+	(l x0 (\x xs
+		(g (f x0 x) xs))
+	))))
+))
+(def foldr1 (\f f1 x0 (recur (\g l
+	(l x0 (\x xs
+		(xs (f1 x) (\_ _
+			(f x (g xs))
+		))
+	))))
+))
+(def ++ (\a b (foldr (\x y (cons x y)) b a)))
+(def join (\sep (foldr1 (\x y (++ x (++ sep y))) id "")))
 
 ; the Maybe protocol:  (m nothing_value (\v just_value))
 (def nothing fst)
@@ -39,10 +53,12 @@
 ; numeric utils
 (def neg (- 0))
 
-; filename
-(def fileName (recur (\f (\name
+; converting strings to built-in strings
+(let fileName (recur (\f (\name
 	(name
 		consFileName
 		(\h r ((f r) h))
 	)
 ))))
+(def open (\f (openCmd (fileName f))))
+(def system (\f (systemCmd (fileName f))))

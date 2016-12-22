@@ -1,4 +1,4 @@
-(import str)
+(import* str)
 ;impl helpers
 (let readIfF (\handle condition
 	(do
@@ -28,15 +28,29 @@
 ; input
 (def readIntF (\handle
 	(do
-		(_ (readWhileF handle str.isSpace))
+		(_ (readWhileF handle isSpace))
 		(sign_m (readIfF handle (= '-')))
 		(let sign (sign_m 1 (neg 1)))
-		(numbers_c (readWhileF handle str.isDigit))
-		(let numbers (str.atoi numbers_c))
+		(numbers_c (readWhileF handle isDigit))
+		(let numbers (atoi numbers_c))
 		(return (* sign numbers))
 	)
 ))
 (def readInt (readIntF 0))
+
+; getArg
+(let getArgStr (recur (\f (do
+	(a getArg)
+	((< a 0) (return "") (run
+		(remain f)
+		(return (cons a remain))
+	))
+))))
+(def getArgs (do
+	(a getArgStr)
+	(return (splitStr 0 a))
+))
+
 
 ; output
 (def putStrF (\handle (recur (\f (\s (do

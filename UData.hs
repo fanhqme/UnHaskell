@@ -78,7 +78,7 @@ applyBBinaryArith BDiv (BFloat a) (BInt b) = numToBResult (BFloat (a/(fromIntegr
 applyBBinaryArith BDiv (BInt a) (BFloat b) = numToBResult (BFloat ((fromIntegral a)/b))
 applyBBinaryArith BDiv (BFloat a) (BFloat b) = numToBResult (BFloat (a/b))
 applyBBinaryArith BMod _ (BInt 0) = BException "mod by zero"
-applyBBinaryArith BMod (BInt a) (BInt b) = numToBResult (BInt (a `div`b))
+applyBBinaryArith BMod (BInt a) (BInt b) = numToBResult (BInt (a `mod` b))
 applyBBinaryArith BMod _ _ = BException "cannot use non-integer value in mod"
 
 compBNum :: BCompType -> BNum -> BNum -> Bool
