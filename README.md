@@ -33,7 +33,7 @@ $./urun helloworld.u
 hello world
 ```
 
-A basic repl calculator is also included.
+urun is also an REPL interpreter
 ```
 $runghc urepl.hs
 ; type :q to quit, :? for help
@@ -45,7 +45,7 @@ ha
 0
 >:q
 ```
-Note that, "print" is just the identity function (\x x). When using it as a callback, the execution is terminated with result printed.
+Note that, "print" is just the identity function (\x x). When using it as a callback, the result (now the return code of putStrLn) is printed with execution terminated.
 
 Language Specification
 ----------------

@@ -96,7 +96,7 @@ vBuiltInList=[
 	("putCharF", (VSys (VPutChar))),
 	("getArg", (VSys (VGetArg))),
 	("systemCmd", (VSys (VSystem))),
-	("consFileName", (VBuiltin (BIntList [])))
+	("makeIntList", (VBuiltin (BIntList [])))
 	]
 
 emptyContext = (Map.empty::VContext)
@@ -105,11 +105,13 @@ vrBuiltInDict = Map.fromList (map (\(x,y) -> (x,(VGood (y, emptyContext)))) vBui
 
 
 applyFunc :: BoundValue -> VResult -> VResult
-applyFunc ((VBuiltin a),ca) br = (case br of
-	(VException e) -> VException e
-	(VGood (VBuiltin b,_)) -> bValToVResult (applyBVal  a b)
-	(VGood x) -> VException ("cannot feed non-builtin value to builtin value "++(showBValue a))
-	)where
+applyFunc ((VBuiltin a),ca) br = case a of
+	(BNumVal av) -> VException ("cannot use numeric value as function")
+	_ -> case br of
+		(VException e) -> VException e
+		(VGood (VBuiltin b,_)) -> bValToVResult (applyBVal  a b)
+		(VGood x) -> VException ("cannot feed non-builtin value to builtin value "++(showBValue a))
+	where
 		bValToVResult (BException e) = VException e
 		bValToVResult (BClean v) = VGood (VBuiltin v,emptyContext)
 applyFunc ((VAbs k v),ca) br = evalExp v (Map.insert k br ca)

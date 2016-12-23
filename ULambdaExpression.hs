@@ -35,6 +35,6 @@ defaultBuiltinNames = [
 	"putChar",
 	"putCharF",
 	"getArg",
-	"consFileName",
+	"makeIntList",
 	"systemCmd"
 	]
