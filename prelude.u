@@ -6,6 +6,7 @@
 (def recur (\f ((\x (f (x x))) (\x (f (x x))))))
 (def print id)
 (def die (recur id))  ; this makes the program runs forever
+(def const K)
 
 ; the Bool protocol:   (b  true_value  false_value)
 (def True (\x y x))

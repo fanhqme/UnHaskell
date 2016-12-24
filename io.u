@@ -30,7 +30,7 @@
 	(do
 		(_ (readWhileF handle isSpace))
 		(sign_m (readIfF handle (= '-')))
-		(let sign (sign_m 1 (neg 1)))
+		(let sign (sign_m 1 (const (neg 1))))
 		(numbers_c (readWhileF handle isDigit))
 		(let numbers (atoi numbers_c))
 		(return (* sign numbers))
