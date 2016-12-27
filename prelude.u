@@ -12,7 +12,7 @@
 (def True (\x y x))
 (def False (\x y y))
 (def if id)
-(def not (\x False True))
+(def not (\x (x False True)))
 (def and (\x y (x y False)))
 (def or (\x y (x True y)))
 
@@ -24,6 +24,7 @@
 ; the List protocol:   (l null_value (\head tail list_value))
 (def cons (\x xs f g (g x xs)))
 (def empty fst)
+(def null (\x (x True (\_ _ False))))
 (def foldr (\f x0 (recur (\g (\l
 	(l x0 (\x xs
 		(f x (g xs))
@@ -42,7 +43,9 @@
 	))))
 ))
 (def ++ (\a b (foldr (\x y (cons x y)) b a)))
-(def join (\sep (foldr1 (\x y (++ x (++ sep y))) id "")))
+(def join (\sep (foldr1 (\x y (++ x (++ sep y))) id empty)))
+(def sum (foldl + 0))
+(def map (\f (foldr (\h r (cons (f h) r)) empty)))
 
 ; the Maybe protocol:  (m nothing_value (\v just_value))
 (def nothing fst)

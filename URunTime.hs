@@ -110,7 +110,7 @@ applyFunc ((VBuiltin a),ca) br = case a of
 	_ -> case br of
 		(VException e) -> VException e
 		(VGood (VBuiltin b,_)) -> bValToVResult (applyBVal  a b)
-		(VGood x) -> VException ("cannot feed non-builtin value to builtin value "++(showBValue a))
+		(VGood x) -> VException ("cannot apply built-in function "++(showBValue a)++" on non-numeric value")
 	where
 		bValToVResult (BException e) = VException e
 		bValToVResult (BClean v) = VGood (VBuiltin v,emptyContext)

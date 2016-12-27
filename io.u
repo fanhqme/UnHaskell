@@ -37,6 +37,15 @@
 	)
 ))
 (def readInt (readIntF 0))
+(def readLineF (\handle
+	(do
+		(body (readWhileF handle (/= '\n')))
+		(trail (readIfF handle(= '\n')))
+		(let body_t (trail body (\x (++ body (cons x empty)))))
+		(return body_t)
+	)
+))
+(def readLine (readLineF 0))
 
 ; getArg
 (let getArgStr (recur (\f (do

@@ -26,4 +26,5 @@
 		)
 	) empty s)
 )))
+(def rstrip (foldr (\a r (or (not (isSpace a)) (not (null r)) (cons a r) r)) empty))
 

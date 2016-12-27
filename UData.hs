@@ -43,7 +43,7 @@ showBCompType BNEq = "/="
 
 applyBVal :: BValue -> BValue -> BResult
 applyBVal (BFuncVal b) (BNumVal v) = applyBFunc b v
-applyBVal (BFuncVal b) _ = BException ("cannot apply non-numeric argument to builtin function "++(show b))
+applyBVal (BFuncVal b) _ = BException ("cannot apply built-in function "++(showBFunc b)++" on non-numeric value")
 applyBVal (BIntList args) (BNumVal (BInt v)) = BClean (BIntList (v:args))
 applyBVal (BIntList args) _ = BException "cannot append non-integer number in IntList"
 applyBVal _ _ = BException "cannot use numeric value as function"

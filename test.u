@@ -1,6 +1,8 @@
 (import* str)
 (import* io)
 (run
+	;(line readLine)
+	;(_ (putStrLn line))
 	;(r (system "ls -l"))
 	;(_ (putStrLn (itoa r)))
 

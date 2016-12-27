@@ -1,8 +1,8 @@
 (import* io)
 (import* str)
 (run
-	(a readInt)
-	(b readInt)
-	(_ (putStrLn (itoa (+ a b))))
+	(line readLine)
+	(let s (sum (map atoi (splitStr ' ' (rstrip line)))))
+	(_ (putStrLn (itoa s)))
 	(exit 0)
 )
