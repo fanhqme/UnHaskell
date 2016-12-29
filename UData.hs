@@ -45,7 +45,7 @@ applyBVal :: BValue -> BValue -> BResult
 applyBVal (BFuncVal b) (BNumVal v) = applyBFunc b v
 applyBVal (BFuncVal b) _ = BException ("cannot apply built-in function "++(showBFunc b)++" on non-numeric value")
 applyBVal (BIntList args) (BNumVal (BInt v)) = BClean (BIntList (v:args))
-applyBVal (BIntList args) _ = BException "cannot append non-integer number in IntList"
+applyBVal (BIntList args) _ = BException "cannot append non-integer number to IntList"
 applyBVal _ _ = BException "cannot use numeric value as function"
 
 applyBFunc :: BFunc -> BNum -> BResult

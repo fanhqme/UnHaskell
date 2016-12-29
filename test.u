@@ -1,6 +1,12 @@
 (import* str)
 (import* io)
 (run
+	(fin (open "2.bin" 0))
+	(c (getCharF fin))
+	(_ (putStrLn (itoa c)))
+	;(fout (open "2.bin" 1))
+	;(_ (putCharF fout 255))
+	;(_ (close fout))
 	;(line readLine)
 	;(_ (putStrLn line))
 	;(r (system "ls -l"))

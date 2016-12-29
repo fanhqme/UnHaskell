@@ -86,7 +86,7 @@ instance UEnv URealWorldEnv where
 		else if (any (not.isValidCharInt) filename) then
 			return ((-3),initfiles)
 		else
-			(openFile (map chr filename) (efOpenModes!!mode) >>=
+			(openBinaryFile (map chr filename) (efOpenModes!!mode) >>=
 				(\handle -> ( let (fno,files1) = flAddHandle handle initfiles in
 					return (fno,files1)
 				)))
