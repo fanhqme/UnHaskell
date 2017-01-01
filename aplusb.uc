@@ -1,5 +1,5 @@
 void main_program(){
-makeApply(
+executeVExp(makeApply(
 makeAbs(
 makeApply(
 makeAbs(
@@ -876,5 +876,5 @@ makeRef(3),
 makeRef(1)),
 makeApply(
 makeRef(2),
-makeRef(1)))))));
+makeRef(1))))))));
 }

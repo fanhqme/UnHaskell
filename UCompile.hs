@@ -4,8 +4,8 @@ import qualified Data.Map as Map
 
 compileToC :: LExpr -> [Char]
 compileToC l = header++compileToCS l (Map.fromList []) 0 footer where
-	header="void main_program(){\n"
-	footer=";\n}"
+	header="void main_program(){\nexecuteVExp("
+	footer=");\n}"
 	compileToCS :: LExpr -> Map.Map [Char] Int -> Int -> ShowS
 	compileToCS l names curlevel = case l of
 		LInt v -> showString ("makeInt("++(show v)++")")
