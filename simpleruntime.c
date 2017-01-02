@@ -47,7 +47,7 @@ typedef struct VExp{
 	} SyscallType;
 	typedef union{
 		int int_val;
-		IntList* intlist_val;
+		IntList * intlist_val;
 	} SyscallArg;
 	union{
 		Number num_val; //EXP_NUM
@@ -125,7 +125,7 @@ struct Continuation{
 
 Value * newValue();
 Value * retainValue(Value * p);
-Value * releaseValue(Value* p);
+Value * releaseValue(Value * p);
 VExp * allocateVExp(VExp * p){
 	static VExp * pool=NULL;
 	if (!p){
@@ -299,11 +299,11 @@ typedef struct ValueStack{
 Continuation * newContinuation();
 ValueStack * newValueStack();
 VContext * retainVContext(VContext * context);
-Value * lookUpRef(int ref,VContext* context);
-VContext * insertRef(Value*,VContext* context);
+Value * lookUpRef(int ref,VContext * context);
+VContext * insertRef(Value *,VContext * context);
 void displayExp(VExp * e);
 
-Value* resolveValue(Value * v){ // v : stolen    returns: stolen
+Value * resolveValue(Value * v){ // v : stolen    returns: stolen
 	//v->type must be VALUE_RUNNING
 	Continuation * cont=v->r_cont;
 	if (!cont){
@@ -350,12 +350,14 @@ Value* resolveValue(Value * v){ // v : stolen    returns: stolen
 			ncont->type=ncont->CONT_APPLY;
 			ncont->cont=cont->cont;
 			ncont->ap_x=nvx;
-			cont->type=cont->CONT_EVAL;
-			cont->eval_exp=f;
-			cont->eval_context=context;
-			cont->cont=ncont;
+			Continuation * ncont2=newContinuation();
+			ncont2->type=ncont2->CONT_EVAL;
+			ncont2->eval_exp=f;
+			ncont2->eval_context=context;
+			ncont2->cont=ncont;
 			v->r_exp=NULL;
 			v->r_context=NULL;
+			v->r_cont=ncont2;
 		}
 	}else if (cont->type==cont->CONT_APPLY){
 		VExp * exp=v->r_exp;
