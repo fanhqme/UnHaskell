@@ -8,6 +8,18 @@ typedef struct Number{
 		int int_val;
 	};
 } Number;
+Number intNumber(int a){
+	Number r;
+	r.type=r.NUM_INT;
+	r.int_val=a;
+	return r;
+}
+Number doubleNumber(double a){
+	Number r;
+	r.type=r.NUM_DOUBLE;
+	r.double_val=a;
+	return r;
+}
 Number addNumber(Number a,Number b){
 	if (a.type==a.NUM_INT){
 		if (b.type==b.NUM_INT){

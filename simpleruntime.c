@@ -3,15 +3,11 @@
 #include <math.h>
 
 #include "number.c"
+#include "intlist.c"
 
 typedef struct VContext VContext; // map<int,LazyValue*>
 typedef struct Continuation Continuation; 
 typedef struct Value Value; 
-typedef struct IntList{
-	int val;
-	IntList * next;
-}IntList;
-IntList * newIntList();
 typedef struct VExp{ 
 	enum{
 		EXP_NUM,
@@ -56,7 +52,7 @@ typedef struct VExp{
 	union{
 		Number num_val; //EXP_NUM
 		VExp * abs_val; //EXP_ABS
-		int ref; //EXP_REF
+		int ref_val; //EXP_REF
 		struct{ //EXP_APPLY
 			VExp * ap_f;
 			VExp * ap_x;
@@ -78,9 +74,10 @@ typedef struct VExp{
 			int sys_arg2;
 			Value * sys_cont;
 		};
+		VExp * pool_next;
 	};
+	int refcount;
 } VExp;
-
 const int syscall_arginfo[7][4]={
 {2,0,-1,-1}, // SYS_EXIT   0 = int
 {3,1, 0, 2},   //SYS_OPEN,   1 = intlist  2 = cont
@@ -90,7 +87,6 @@ const int syscall_arginfo[7][4]={
 {1,2,-1,-1}, //SYS_GETARG,
 {2,1, 2,-1}  //SYS_SYSTEM
 };
-
 struct Value{
 	enum{
 		VALUE_RESOLVED,
@@ -104,7 +100,8 @@ struct Value{
 		};
 		const char * message; //VALUE_EXCEPTION
 		struct{ //VALUE_RUNNING
-			Value * r_val;
+			VExp * r_exp;
+			VContext * r_context;
 			Continuation * r_cont;
 		};
 	};
@@ -125,51 +122,215 @@ struct Continuation{
 		Continuation * cont;
 	};
 };
+
+Value * newValue();
+Value * retainValue(Value * p);
+Value * releaseValue(Value* p);
+VExp * allocateVExp(VExp * p){
+	static VExp * pool=NULL;
+	if (!p){
+		if (!pool){
+			VExp * p=(VExp *)malloc(sizeof(VExp)*1000);
+			for (int i=0;i<1000;i++){
+				p[i].pool_next=pool;
+				pool=p+i;
+			}
+		}
+		p=pool;
+		p->refcount=1;
+		pool=pool->pool_next;
+		return p;
+	}else{
+		p->pool_next=pool;
+		pool=p;
+		return NULL;
+	}
+}
+VExp * retainVExp(VExp * p){  // p: stolen    returns: new
+	if (p){
+		p->refcount++;
+	}
+	return p;
+}
+VExp * releaseVExp(VExp * p){  // p: consumed   returns: NULL
+	if (p){
+		p->refcount--;
+		if (p->refcount==0){
+			if (p->type==p->EXP_ABS){
+				releaseVExp(p->abs_val);
+			}else if (p->type==p->EXP_APPLY){
+				releaseVExp(p->ap_f);
+				releaseVExp(p->ap_x);
+			}else if (p->type==p->EXP_INTLIST){
+				releaseIntList(p->intlist_val);
+			}else if (p->type==p->EXP_SYSCALL){
+				if (p->sys_nbind>=1 && syscall_arginfo[p->sys_type][1]==1){
+					releaseIntList(p->sys_arg1.intlist_val);
+				}
+				if (p->sys_nbind==syscall_arginfo[p->sys_type][0] && syscall_arginfo[p->sys_type][p->sys_nbind]==2){
+					releaseValue(p->sys_cont);
+				}
+			}
+			allocateVExp(p);
+		}
+	}
+	return NULL;
+}
+VExp * newVExpNum(Number num_val){ //returns: new
+	VExp * p=allocateVExp(NULL);
+	p->type=p->EXP_NUM;
+	p->num_val=num_val;
+	return p;
+}
+VExp * newVExpAbs(VExp * abs_val){ //abs_val: consumed   returns: new
+	VExp * p=allocateVExp(NULL);
+	p->type=p->EXP_ABS;
+	p->abs_val=abs_val;
+	return p;
+}
+VExp * newVExpRef(int ref_val){ //returns: new
+	VExp * p=allocateVExp(NULL);
+	p->type=p->EXP_REF;
+	p->ref_val=ref_val;
+	return p;
+}
+VExp * newVExpApply(VExp * ap_f,VExp * ap_x){ // ap_f: consumed   ap_x: consumed   returns: new
+	VExp * p=allocateVExp(NULL);
+	p->type=p->EXP_APPLY;
+	p->ap_f=ap_f;
+	p->ap_x=ap_x;
+	return p;
+}
+VExp * newVExpNumfunc(VExp::FuncType func_type){ //returns: new
+	VExp * p=allocateVExp(NULL);
+	p->type=p->EXP_NUMFUNC;
+	p->func_type=func_type;
+	return p;
+}
+VExp * newVExpNumfunc1(VExp::FuncType func1_type,Number func1_opa){ //returns: new
+	VExp * p=allocateVExp(NULL);
+	p->type=p->EXP_NUMFUNC1;
+	p->func1_type=func1_type;
+	p->func1_opa=func1_opa;
+	return p;
+}
+VExp * newVExpIntList(IntList * intlist_val){ //intlist_val: consumed    returns: new
+	VExp * p=allocateVExp(NULL);
+	p->type=p->EXP_INTLIST;
+	p->intlist_val=intlist_val;
+	return p;
+}
+VExp * newVExpSyscall0(VExp::SyscallType sys_type){//returns: new
+	VExp * p=allocateVExp(NULL);
+	p->type=p->EXP_SYSCALL;
+	p->sys_type=sys_type;
+	p->sys_nbind=0;
+	return p;
+}
+VExp * appendSyscallArg(VExp * exp,Value * x,const char ** error_message,Value ** to_resolve){ // exp: stolen   x: stolen    returns: new    to_resolve[0]: stolen
+	error_message[0]=NULL;
+	to_resolve[0]=NULL;
+	int nrequired=syscall_arginfo[exp->sys_type][0];
+	if (nrequired<=exp->sys_nbind){
+		error_message[0]="too many arguments to syscall";
+		return NULL;
+	}else{
+		int argid=exp->sys_nbind;
+		int argtype=syscall_arginfo[exp->sys_type][1+argid];
+		if (argtype!=2){
+			if (x->type!=x->VALUE_RESOLVED && x->type!=x->VALUE_EXCEPTION){
+				to_resolve[0]=x;
+				return NULL;
+			}
+		}
+		if (argtype==0){
+			if (x->exp->type!=x->exp->EXP_NUM || x->exp->num_val.type!=x->exp->num_val.NUM_INT){
+				error_message[0]="cannot apply non-integer value to syscall";
+				return NULL;
+			}
+		}else if (argtype==1){
+			if (x->exp->type!=x->exp->EXP_INTLIST){
+				error_message[0]="cannot apply non-intlist value to syscall";
+				return NULL;
+			}
+		}//else argtype=2
+		VExp * nexp=allocateVExp(NULL);
+		nexp->type=nexp->EXP_SYSCALL;
+		nexp->sys_type=exp->sys_type;
+		nexp->sys_nbind=exp->sys_nbind+1;
+		if (exp->sys_nbind>0){
+			int atype=syscall_arginfo[exp->sys_type][1+0];
+			if (atype==0){
+				nexp->sys_arg1.int_val=exp->sys_arg1.int_val;
+			}else if (atype==1){
+				nexp->sys_arg1.intlist_val=retainIntList(exp->sys_arg1.intlist_val);
+			}
+		}
+		if (exp->sys_nbind>1){
+			int atype=syscall_arginfo[exp->sys_type][1+1];
+			if (atype==0){
+				nexp->sys_arg2=exp->sys_arg2;
+			}
+		}
+		if (argtype==2){
+			nexp->sys_cont=retainValue(x);
+		}else{
+			if (exp->sys_nbind==0){
+				if (argtype==0){
+					nexp->sys_arg1.int_val=x->exp->num_val.int_val;
+				}else{ //argtype==1
+					nexp->sys_arg1.intlist_val=retainIntList(x->exp->intlist_val);
+				}
+			}else if (exp->sys_nbind==1){
+				if (argtype==0){
+					nexp->sys_arg2=x->exp->num_val.int_val;
+				}
+			}
+		}
+		return nexp;
+	}
+}
+
 typedef struct ValueStack{
 	Value * val;
 	ValueStack * next;
 }ValueStack;
 
-Value * newValue();
 Continuation * newContinuation();
 ValueStack * newValueStack();
-VExp * newVExp();
+VContext * retainVContext(VContext * context);
 Value * lookUpRef(int ref,VContext* context);
 VContext * insertRef(Value*,VContext* context);
 void displayExp(VExp * e);
 
-Value* resolveValue(Value * v){
+Value* resolveValue(Value * v){ // v : stolen    returns: stolen
 	//v->type must be VALUE_RUNNING
-	Value * val=v->r_val;
 	Continuation * cont=v->r_cont;
 	if (!cont){
-		if (val->type==val->VALUE_EXCEPTION){
-			const char * message=val->message;
-			v->type=v->VALUE_EXCEPTION;
-			v->message=message;
-		}else{
-			VExp * exp=val->exp;
-			VContext * context=val->context;
-			v->type=v->VALUE_RESOLVED;
-			v->exp=exp;
-			v->context=context;
-		}
+		VExp * exp=v->r_exp;
+		VContext * context=v->r_context;
+		v->type=v->VALUE_RESOLVED;
+		v->exp=exp;
+		v->context=context;
 	}else if (cont->type==cont->CONT_EVAL){
 		VExp * exp=cont->eval_exp;
 		VContext * context=cont->eval_context;
 		if (exp->type<exp->EXP_WHNF){
-			Value * nv=newValue();
-			nv->type=nv->VALUE_RESOLVED;
-			nv->exp=exp;
-			nv->context=context;
-			v->r_val=nv;
-			v->r_cont=cont->cont;
+			Continuation * ncont=cont->cont;
+			v->type=v->VALUE_RUNNING;
+			v->r_exp=retainVExp(exp);
+			v->r_context=retainVContext(context);
+			v->r_cont=ncont;
 		}if (exp->type==exp->EXP_REF){
-			int ref=exp->ref;
+			int ref=exp->ref_val;
 			Value * ref_val=lookUpRef(ref,context);
-			if (ref_val->type==ref_val->VALUE_RESOLVED || ref_val->type==ref_val->VALUE_EXCEPTION){
-				v->r_val=ref_val;
+			if (ref_val->type==ref_val->VALUE_RESOLVED){
+				v->r_exp=retainVExp(ref_val->exp);
+				v->r_context=retainVContext(ref_val->context);
 				v->r_cont=cont->cont;
+			}else if(ref_val->type==ref_val->VALUE_EXCEPTION){
+				v->type=v->VALUE_EXCEPTION;
+				v->message=ref_val->message;
 			}else{
 				return ref_val;
 			}
@@ -178,7 +339,8 @@ Value* resolveValue(Value * v){
 			VExp * x=exp->ap_x;
 			Value * nvx=newValue();
 			nvx->type=nvx->VALUE_RUNNING;
-			nvx->r_val=NULL;
+			nvx->r_exp=NULL;
+			nvx->r_context=NULL;
 			nvx->r_cont=newContinuation();
 			nvx->r_cont->type=nvx->r_cont->CONT_EVAL;
 			nvx->r_cont->eval_exp=x;
@@ -192,235 +354,179 @@ Value* resolveValue(Value * v){
 			cont->eval_exp=f;
 			cont->eval_context=context;
 			cont->cont=ncont;
-			v->r_val=NULL;
+			v->r_exp=NULL;
+			v->r_context=NULL;
 		}
 	}else if (cont->type==cont->CONT_APPLY){
-		if (val->type==val->VALUE_EXCEPTION){
-			v->r_cont=cont->cont;
-		}else{
-			VExp * exp=val->exp;
-			VContext * context=val->context;
-			Value * x = cont->ap_x;
-			if (exp->type==exp->EXP_NUM){
-				Value * nv=newValue();
-				nv->type=nv->VALUE_EXCEPTION;
-				nv->message="cannot use numeric value as function";
-				v->r_val=nv;
-				v->r_cont=cont->cont;
-			}else if (exp->type==exp->EXP_ABS){
-				VContext * ncontext=insertRef(x,context);
-				cont->type=cont->CONT_EVAL;
-				cont->eval_exp=exp;
-				cont->eval_context=ncontext;
-				v->r_val=NULL;
-			}else if (exp->type==exp->EXP_NUMFUNC){
-				if (x->type!=x->VALUE_RESOLVED && x->type!=x->VALUE_EXCEPTION){
-					return x;
+		VExp * exp=v->r_exp;
+		VContext * context=v->r_context;
+		Value * x = cont->ap_x;
+		if (exp->type==exp->EXP_NUM){
+			v->type=v->VALUE_EXCEPTION;
+			v->message="cannot use numeric value as function";
+		}else if (exp->type==exp->EXP_ABS){
+			VContext * ncontext=insertRef(x,context);
+			cont->type=cont->CONT_EVAL;
+			cont->eval_exp=exp;
+			cont->eval_context=ncontext;
+			v->r_exp=NULL;
+			v->r_context=NULL;
+		}else if (exp->type==exp->EXP_NUMFUNC){
+			if (x->type!=x->VALUE_RESOLVED && x->type!=x->VALUE_EXCEPTION){
+				return x;
+			}
+			if (x->type==x->VALUE_EXCEPTION){
+				const char * message=x->message;
+				v->type=v->VALUE_EXCEPTION;
+				v->message=message;
+			}else if (x->exp->type!=x->exp->EXP_NUM){
+				v->type=v->VALUE_EXCEPTION;
+				v->message="cannot apply built-in function on non-numeric value";
+			}else{
+				VExp * nexp=NULL;
+				if (exp->func_type<exp->FUNC_BINARY){
+					nexp=newVExpNumfunc1(
+						exp->func_type,
+						x->exp->num_val
+					);
+				}else if (exp->func_type==exp->FUNC_TOINT){
+					if (x->exp->num_val.type==x->exp->num_val.NUM_INT){
+						nexp=retainVExp(x->exp);
+					}else{ // must be double
+
+						nexp=newVExpNum(
+							intNumber(floor(exp->num_val.double_val))
+						);
+					}
+				}else if (exp->func_type==exp->FUNC_TOFLOAT){
+					if (x->exp->num_val.type==x->exp->num_val.NUM_DOUBLE){
+						nexp=retainVExp(x->exp);
+					}else{ // must be int
+						nexp=newVExpNum(
+							doubleNumber((double)(exp->num_val.int_val))
+						);
+					}
+				} // cannot be else
+				Continuation * ncont=cont->cont;
+				v->r_exp=nexp;
+				v->r_context=NULL;
+				v->r_cont=ncont;
+			}
+		}else if (exp->type==exp->EXP_NUMFUNC1){
+			if (x->type!=x->VALUE_RESOLVED && x->type!=x->VALUE_EXCEPTION){
+				return x;
+			}
+			if (x->type==x->VALUE_EXCEPTION){
+				const char * message=x->message;
+				v->type=v->VALUE_EXCEPTION;
+				v->message=message;
+			}else if (x->exp->type!=x->exp->EXP_NUM){
+				v->type=v->VALUE_EXCEPTION;
+				v->message="cannot apply built-in function on non-numeric value";
+			}else{
+				const char * exception_message=NULL;
+				Number result;
+				bool is_bool=false,result_bool;
+				if (exp->func1_type==exp->FUNC_ADD){
+					result=addNumber(exp->func1_opa,x->exp->num_val);
+				}else if (exp->func1_type==exp->FUNC_SUB){
+					result=subNumber(exp->func1_opa,x->exp->num_val);
+				}else if (exp->func1_type==exp->FUNC_MUL){
+					result=mulNumber(exp->func1_opa,x->exp->num_val);
+				}else if (exp->func1_type==exp->FUNC_DIV){
+					result=divNumber(exp->func1_opa,x->exp->num_val,&exception_message);
+				}else if (exp->func1_type==exp->FUNC_MOD){
+					result=divNumber(exp->func1_opa,x->exp->num_val,&exception_message);
+				}else{
+					is_bool=true;
+					if (exp->func1_type==exp->FUNC_LE){
+						result_bool=leNumber(exp->func1_opa,x->exp->num_val);
+					}else if (exp->func1_type==exp->FUNC_GE){
+						result_bool=geNumber(exp->func1_opa,x->exp->num_val);
+					}else if (exp->func1_type==exp->FUNC_NLE){
+						result_bool=nleNumber(exp->func1_opa,x->exp->num_val);
+					}else if (exp->func1_type==exp->FUNC_NGE){
+						result_bool=ngeNumber(exp->func1_opa,x->exp->num_val);
+					}else if (exp->func1_type==exp->FUNC_EQ){
+						result_bool=eqNumber(exp->func1_opa,x->exp->num_val);
+					}else if (exp->func1_type==exp->FUNC_NEQ){
+						result_bool=neqNumber(exp->func1_opa,x->exp->num_val);
+					}
 				}
-				if (x->type==x->VALUE_EXCEPTION){
-					const char * message=x->message;
+				if (exception_message!=NULL){
 					v->type=v->VALUE_EXCEPTION;
-					v->message=message;
-				}else if (x->exp->type!=x->exp->EXP_NUM){
-					v->type=v->VALUE_EXCEPTION;
-					v->message="cannot apply built-in function on non-numeric value";
+					v->message=exception_message;
 				}else{
 					VExp * nexp=NULL;
-					if (exp->func_type<exp->FUNC_BINARY){
-						nexp=newVExp();
-						nexp->type=nexp->EXP_NUMFUNC1;
-						nexp->func_type=exp->func_type;
-						nexp->func1_opa=x->exp->num_val;
-					}else if (exp->func_type==exp->FUNC_TOINT){
-						if (x->exp->num_val.type==x->exp->num_val.NUM_INT){
-							nexp=x->exp;
-						}else{ // must be double
-							nexp=newVExp();
-							nexp->type=nexp->EXP_NUM;
-							nexp->num_val.type=nexp->num_val.NUM_INT;
-							nexp->num_val.int_val=(int)(floor(exp->num_val.double_val));
+					if (is_bool){
+						int ref;
+						if (result_bool){
+							ref=1;
+						}else{
+							ref=0;
 						}
-					}else if (exp->func_type==exp->FUNC_TOFLOAT){
-						if (x->exp->num_val.type==x->exp->num_val.NUM_DOUBLE){
-							nexp=x->exp;
-						}else{ // must be int
-							nexp=newVExp();
-							nexp->type=nexp->EXP_NUM;
-							nexp->num_val.type=nexp->num_val.NUM_DOUBLE;
-							nexp->num_val.int_val=(double)(exp->num_val.int_val);
-						}
-					} // cannot be else
-					Value * nv=newValue();
-					nv->type=nv->VALUE_RESOLVED;
-					nv->exp=nexp;
-					nv->context=NULL;
+						nexp=newVExpAbs(
+							newVExpAbs(
+								newVExpRef(
+									ref
+								)
+							)
+						);
+					}else{
+						nexp=newVExpNum(
+							result
+						);
+					}
 					Continuation * ncont=cont->cont;
-					v->r_val=nv;
+					v->r_exp=nexp;
+					v->r_context=NULL;
 					v->r_cont=ncont;
 				}
-			}else if (exp->type==exp->EXP_NUMFUNC1){
-				if (x->type!=x->VALUE_RESOLVED && x->type!=x->VALUE_EXCEPTION){
-					return x;
+			}
+		}else if (exp->type==exp->EXP_INTLIST){
+			if (x->type!=x->VALUE_RESOLVED && x->type!=x->VALUE_EXCEPTION){
+				return x;
+			}
+			if (x->type==x->VALUE_EXCEPTION){
+				const char * message=x->message;
+				v->type=v->VALUE_EXCEPTION;
+				v->message=message;
+			}else if (x->exp->type!=x->exp->EXP_NUM){
+				v->type=v->VALUE_EXCEPTION;
+				v->message="cannot apply built-in function on non-numeric value";
+			}else if (x->exp->num_val.type!=x->exp->num_val.NUM_INT){
+				v->type=v->VALUE_EXCEPTION;
+				v->message="cannot append non-integer number to IntList";
+			}else{
+				VExp * nexp=newVExpIntList(
+					newIntList(
+						x->exp->num_val.int_val,
+						retainIntList(exp->intlist_val)
+					)
+				);
+				Continuation * ncont=cont->cont;
+				v->r_exp=nexp;
+				v->r_context=NULL;
+				v->r_cont=ncont;
+			}
+		}else if (exp->type==exp->EXP_SYSCALL){
+			Value * to_resolve;
+			const char * error_message;
+			VExp * nexp=appendSyscallArg(exp,x,&error_message,&to_resolve);
+			if (!nexp){
+				if (error_message){
+					v->type=v->VALUE_EXCEPTION;
+					v->message=error_message;
+				}else if (to_resolve){
+					return to_resolve;
 				}
-				if (x->type==x->VALUE_EXCEPTION){
-					const char * message=x->message;
-					v->type=v->VALUE_EXCEPTION;
-					v->message=message;
-				}else if (x->exp->type!=x->exp->EXP_NUM){
-					v->type=v->VALUE_EXCEPTION;
-					v->message="cannot apply built-in function on non-numeric value";
-				}else{
-					const char * exception_message=NULL;
-					Number result;
-					bool is_bool=false,result_bool;
-					if (exp->func1_type==exp->FUNC_ADD){
-						result=addNumber(exp->func1_opa,x->exp->num_val);
-					}else if (exp->func1_type==exp->FUNC_SUB){
-						result=subNumber(exp->func1_opa,x->exp->num_val);
-					}else if (exp->func1_type==exp->FUNC_MUL){
-						result=mulNumber(exp->func1_opa,x->exp->num_val);
-					}else if (exp->func1_type==exp->FUNC_DIV){
-						result=divNumber(exp->func1_opa,x->exp->num_val,&exception_message);
-					}else if (exp->func1_type==exp->FUNC_MOD){
-						result=divNumber(exp->func1_opa,x->exp->num_val,&exception_message);
-					}else{
-						is_bool=true;
-						if (exp->func1_type==exp->FUNC_LE){
-							result_bool=leNumber(exp->func1_opa,x->exp->num_val);
-						}else if (exp->func1_type==exp->FUNC_GE){
-							result_bool=geNumber(exp->func1_opa,x->exp->num_val);
-						}else if (exp->func1_type==exp->FUNC_NLE){
-							result_bool=nleNumber(exp->func1_opa,x->exp->num_val);
-						}else if (exp->func1_type==exp->FUNC_NGE){
-							result_bool=ngeNumber(exp->func1_opa,x->exp->num_val);
-						}else if (exp->func1_type==exp->FUNC_EQ){
-							result_bool=eqNumber(exp->func1_opa,x->exp->num_val);
-						}else if (exp->func1_type==exp->FUNC_NEQ){
-							result_bool=neqNumber(exp->func1_opa,x->exp->num_val);
-						}
-					}
-					if (exception_message!=NULL){
-						v->type=v->VALUE_EXCEPTION;
-						v->message=exception_message;
-					}else{
-						VExp * nexp=NULL;
-						if (is_bool){
-							nexp=newVExp();
-							nexp->type=nexp->EXP_ABS;
-							nexp->abs_val=newVExp();
-							nexp->abs_val->type=nexp->EXP_ABS;
-							nexp->abs_val->abs_val=newVExp();
-							nexp->abs_val->abs_val->type=nexp->EXP_REF;
-							if (result_bool){
-								nexp->abs_val->abs_val->ref=1;
-							}else{
-								nexp->abs_val->abs_val->ref=0;
-							}
-						}else{
-							nexp=newVExp();
-							nexp->type=nexp->EXP_NUM;
-							nexp->num_val=result;
-						}
-						VContext * context=NULL;
-						Value * nv=newValue();
-						nv->type=nv->VALUE_RESOLVED;
-						nv->exp=nexp;
-						nv->context=context;
-						Continuation * ncont=cont->cont;
-						v->r_val=nv;
-						v->r_cont=ncont;
-					}
-				}
-			}else if (exp->type==exp->EXP_INTLIST){
-				if (x->type!=x->VALUE_RESOLVED && x->type!=x->VALUE_EXCEPTION){
-					return x;
-				}
-				if (x->type==x->VALUE_EXCEPTION){
-					const char * message=x->message;
-					v->type=v->VALUE_EXCEPTION;
-					v->message=message;
-				}else if (x->exp->type!=x->exp->EXP_NUM){
-					v->type=v->VALUE_EXCEPTION;
-					v->message="cannot apply built-in function on non-numeric value";
-				}else if (x->exp->num_val.type!=x->exp->num_val.NUM_INT){
-					v->type=v->VALUE_EXCEPTION;
-					v->message="cannot append non-integer number to IntList";
-				}else{
-					VExp * nexp=newVExp();
-					nexp->type=nexp->EXP_INTLIST;
-					nexp->intlist_val=newIntList();
-					nexp->intlist_val->val=x->exp->num_val.int_val;
-					nexp->intlist_val->next=exp->intlist_val;
-					VContext * context=NULL;
-					Value * nv=newValue();
-					nv->type=nv->VALUE_RESOLVED;
-					nv->exp=nexp;
-					nv->context=context;
-					Continuation * ncont=cont->cont;
-					v->r_val=nv;
-					v->r_cont=ncont;
-				}
-			}else if (exp->type==exp->EXP_SYSCALL){
-				int nrequired=syscall_arginfo[exp->sys_type][0];
-				if (nrequired<=exp->sys_nbind){
-					v->type=v->VALUE_EXCEPTION;
-					v->message="too many arguments to syscall";
-				}else{
-					int argid=exp->sys_nbind;
-					int argtype=syscall_arginfo[exp->sys_type][argid];
-					if (argtype!=2){
-						if (x->type!=x->VALUE_RESOLVED && x->type!=x->VALUE_EXCEPTION){
-							return x;
-						}
-					}
-					bool error_happened=false;
-					if (argtype==0){
-						if (x->exp->type!=x->exp->EXP_NUM || x->exp->num_val.type!=x->exp->num_val.NUM_INT){
-							v->type=v->VALUE_EXCEPTION;
-							v->message="cannot apply non-integer value to syscall";
-							error_happened=true;
-						}
-					}else if (argtype==1){
-						if (x->exp->type!=x->exp->EXP_INTLIST){
-							v->type=v->VALUE_EXCEPTION;
-							v->message="cannot apply non-intlist value to syscall";
-							error_happened=true;
-						}
-					}//else argtype=2
-					if (!error_happened){
-						VExp * nexp=newVExp();
-						nexp->sys_type=exp->sys_type;
-						nexp->sys_nbind=exp->sys_nbind+1;
-						if (exp->sys_nbind>0){
-							int atype=syscall_arginfo[exp->sys_type][0];
-							if (atype==0){
-								nexp->sys_arg1.int_val=exp->sys_arg1.int_val;
-							}else if (atype==1){
-								nexp->sys_arg1.intlist_val=exp->sys_arg1.intlist_val;
-							}
-						}
-						if (exp->sys_nbind>1){
-							nexp->sys_arg2=exp->sys_arg2;
-						}
-						if (argtype==2){
-							nexp->sys_cont=x;
-						}else{
-							if (exp->sys_nbind==0){
-								if (argtype==0){
-									nexp->sys_arg1.int_val=x->exp->num_val.int_val;
-								}else{ //argtype==1
-									nexp->sys_arg1.intlist_val=x->exp->intlist_val;
-								}
-							}else if (exp->sys_nbind==1){
-								if (argtype==0){
-									nexp->sys_arg2=x->exp->num_val.int_val;
-								}
-							}
-						}
-					}
-				}
-			}// else   other expression types
-		}
+			}else{
+				Continuation * ncont=cont->cont;
+				v->r_exp=nexp;
+				v->r_context=context;
+				v->r_cont=ncont;
+			}
+		}// else   other expression types
 	}
 	return NULL;
 }
@@ -443,7 +549,6 @@ void resolveAllValue(Value * v){
 	}
 }
 
-char * convertIntListToString(IntList* list);
 
 int executeValue(Value * v,int argc,char ** args){
 	int cur_argi=0;
@@ -571,10 +676,9 @@ int executeValue(Value * v,int argc,char ** args){
 		}else{
 			Value * rv=newValue();
 			rv->type=rv->VALUE_RESOLVED;
-			rv->exp=newVExp();
-			rv->exp->type=rv->exp->EXP_NUM;
-			rv->exp->num_val.type=rv->exp->num_val.NUM_INT;
-			rv->exp->num_val.int_val=resultcode;
+			rv->exp=newVExpNum(
+				intNumber(resultcode)
+			);
 			rv->context=NULL;
 			Continuation * ncont=newContinuation();
 			ncont->type=ncont->CONT_APPLY;
@@ -582,7 +686,8 @@ int executeValue(Value * v,int argc,char ** args){
 			ncont->cont=NULL;
 			Value * nv=newValue();
 			nv->type=nv->VALUE_RUNNING;
-			nv->r_val=sys_cont;
+			nv->r_exp=sys_cont->exp;
+			nv->r_context=sys_cont->context;
 			nv->r_cont=ncont;
 			v=nv;
 		}
