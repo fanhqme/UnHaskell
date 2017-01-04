@@ -2,11 +2,24 @@ module UInterpret where
 import System.Environment
 import System.IO
 import qualified Data.Set as Set
+import qualified Data.Map as Map
 import UParse
 import UModuleLoader
 import URunTime
 import UEnvironment
 import ULambdaExpression
+
+showPrettyValue v
+	| isTrueValue v = "True"
+	| isFalseValue v = "False"
+	| otherwise = showValue v
+	where
+	isTrueValue v = case v of
+		VAbs name1 (VClean (VAbs name2 (VRef name3))) -> name1==name3
+		_ -> False
+	isFalseValue v = case v of
+		VAbs name1 (VClean (VAbs name2 (VRef name3))) -> name2==name3
+		_ -> False
 
 runInteractive :: [[Char]] -> Bool -> IO ()
 runInteractive args showHints = do
@@ -86,8 +99,8 @@ runInteractive args showHints = do
 										UExceptionHappened f -> do
 											(liftUR.putStrLn) ("exception: "++f)
 											repl (c,locals) revimports (Just t)
-										UResultReturned (v,_) -> do
-											(liftUR.putStrLn) (showValue v)
+										UResultReturned (v,vc) -> do
+											(liftUR.putStrLn) (showPrettyValue v)
 											repl (c,locals) revimports (Just t)
 					where
 					tryAddDef :: [Char] -> (STokenTree,SPosition) -> SVisibility -> URealWorldEnv ()
@@ -118,16 +131,5 @@ runFileF fout ifname args = do
 					URunning () -> putStrLn "execution interrupted"
 					UExited x -> if (x==0) then return () else putStrLn ("exit with code "++(show x))
 					UExceptionHappened f -> putStrLn ("exception: "++f)
-					UResultReturned (v,_) -> hPutStrLn fout (showPrettyValue v)
-	where
-		showPrettyValue v
-			| isTrueValue v = "True"
-			| isFalseValue v = "False"
-			| otherwise = showValue v
-		isTrueValue v = case v of
-			VAbs name1 (VClean (VAbs name2 (VRef name3))) -> name1==name3
-			_ -> False
-		isFalseValue v = case v of
-			VAbs name1 (VClean (VAbs name2 (VRef name3))) -> name2==name3
-			_ -> False
+					UResultReturned (v,vc) -> hPutStrLn fout (showPrettyValue v)
 runFile = runFileF stdout
