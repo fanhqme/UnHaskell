@@ -1,7 +1,7 @@
 #include <stdlib.h>
 typedef struct IntList{
 	int val;
-	IntList * next;
+	struct IntList * next;
 	int refcount;
 }IntList;
 IntList * allocateIntList(IntList * p){

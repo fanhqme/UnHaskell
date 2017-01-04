@@ -6,10 +6,9 @@
 #include "intlist.c"
 
 typedef struct VContext VContext; // map<int,LazyValue*>
-typedef struct Continuation Continuation; 
-typedef struct Value Value; 
-typedef struct VExp{ 
-	enum{
+typedef struct Continuation Continuation;
+typedef struct Value Value;
+typedef enum{
 		EXP_NUM,
 		EXP_ABS,
 		EXP_NUMFUNC,
@@ -19,8 +18,8 @@ typedef struct VExp{
 		EXP_WHNF, // weak head normal form
 		EXP_REF,
 		EXP_APPLY
-	}type;
-	typedef enum{
+	} ExpType;
+typedef enum{
 		FUNC_ADD,
 		FUNC_SUB,
 		FUNC_MUL,
@@ -36,7 +35,7 @@ typedef struct VExp{
 		FUNC_TOFLOAT,
 		FUNC_TOINT
 	} FuncType;
-	typedef enum{
+typedef enum{
 		SYS_EXIT,
 		SYS_OPEN,
 		SYS_CLOSE,
@@ -45,17 +44,30 @@ typedef struct VExp{
 		SYS_GETARG,
 		SYS_SYSTEM
 	} SyscallType;
-	typedef union{
+typedef enum{
+		CONT_EVAL,
+		CONT_APPLY,
+	} ContType;
+typedef enum{
+		VALUE_RESOLVED,
+		VALUE_EXCEPTION,
+		VALUE_RUNNING
+	} ValueType;
+typedef union{
 		int int_val;
 		IntList * intlist_val;
 	} SyscallArg;
+typedef struct VExp{
+	ExpType type;
+    FuncType funcType;
+	SyscallType syscallType;
 	union{
 		Number num_val; //EXP_NUM
-		VExp * abs_val; //EXP_ABS
+		struct VExp * abs_val; //EXP_ABS
 		int ref_val; //EXP_REF
 		struct{ //EXP_APPLY
-			VExp * ap_f;
-			VExp * ap_x;
+			struct VExp * ap_f;
+			struct VExp * ap_x;
 		};
 		struct{ //EXP_NUMFUNC
 			FuncType func_type;
@@ -74,7 +86,7 @@ typedef struct VExp{
 			int sys_arg2;
 			Value * sys_cont;
 		};
-		VExp * pool_next;
+		struct VExp * pool_next;
 	};
 	int refcount;
 } VExp;
@@ -88,11 +100,7 @@ const int syscall_arginfo[7][4]={
 {2,1, 2,-1}  //SYS_SYSTEM
 };
 struct Value{
-	enum{
-		VALUE_RESOLVED,
-		VALUE_EXCEPTION,
-		VALUE_RUNNING
-	}type;
+	ValueType type;
 	union{
 		struct{ //VALUE_RESOLVED
 			VExp * exp;
@@ -105,12 +113,11 @@ struct Value{
 			Continuation * r_cont;
 		};
 	};
+	int refcount;
+	Value * pool_next;
 };
 struct Continuation{
-	enum{
-		CONT_EVAL,
-		CONT_APPLY,
-	}type;
+	ContType type;
 	union{
 		struct{ //CONT_EVAL
 			VExp * eval_exp;
@@ -122,10 +129,51 @@ struct Continuation{
 		Continuation * cont;
 	};
 };
+typedef struct ValueStack{
+	Value * val;
+	struct ValueStack * next;
+}ValueStack;
 
-Value * newValue();
-Value * retainValue(Value * p);
-Value * releaseValue(Value * p);
+Value* newValue(){
+
+}
+
+Value * releaseValue(Value * p){
+
+}
+
+Value * retainValue(Value * p){
+
+}
+
+Value * lookUpRef(int ref,VContext * context){
+
+}
+
+VContext * releaseVContext(VContext * p){
+
+}
+
+VContext * retainVContext(VContext * p){
+
+}
+
+Continuation * newContinuation(){
+
+}
+
+ValueStack * newValueStack(){
+
+}
+
+VContext * insertRef(Value * v,VContext * context){
+
+}
+
+void displayExp(VExp * e){
+
+}
+
 VExp * allocateVExp(VExp * p){
 	static VExp * pool=NULL;
 	if (!p){
@@ -146,6 +194,7 @@ VExp * allocateVExp(VExp * p){
 		return NULL;
 	}
 }
+
 VExp * retainVExp(VExp * p){  // p: stolen    returns: new
 	if (p){
 		p->refcount++;
@@ -156,14 +205,14 @@ VExp * releaseVExp(VExp * p){  // p: consumed   returns: NULL
 	if (p){
 		p->refcount--;
 		if (p->refcount==0){
-			if (p->type==p->EXP_ABS){
+			if (p->type==EXP_ABS){
 				releaseVExp(p->abs_val);
-			}else if (p->type==p->EXP_APPLY){
+			}else if (p->type==EXP_APPLY){
 				releaseVExp(p->ap_f);
 				releaseVExp(p->ap_x);
-			}else if (p->type==p->EXP_INTLIST){
+			}else if (p->type==EXP_INTLIST){
 				releaseIntList(p->intlist_val);
-			}else if (p->type==p->EXP_SYSCALL){
+			}else if (p->type==EXP_SYSCALL){
 				if (p->sys_nbind>=1 && syscall_arginfo[p->sys_type][1]==1){
 					releaseIntList(p->sys_arg1.intlist_val);
 				}
@@ -178,51 +227,51 @@ VExp * releaseVExp(VExp * p){  // p: consumed   returns: NULL
 }
 VExp * newVExpNum(Number num_val){ //returns: new
 	VExp * p=allocateVExp(NULL);
-	p->type=p->EXP_NUM;
+	p->type=EXP_NUM;
 	p->num_val=num_val;
 	return p;
 }
 VExp * newVExpAbs(VExp * abs_val){ //abs_val: consumed   returns: new
 	VExp * p=allocateVExp(NULL);
-	p->type=p->EXP_ABS;
+	p->type=EXP_ABS;
 	p->abs_val=abs_val;
 	return p;
 }
 VExp * newVExpRef(int ref_val){ //returns: new
 	VExp * p=allocateVExp(NULL);
-	p->type=p->EXP_REF;
+	p->type=EXP_REF;
 	p->ref_val=ref_val;
 	return p;
 }
 VExp * newVExpApply(VExp * ap_f,VExp * ap_x){ // ap_f: consumed   ap_x: consumed   returns: new
 	VExp * p=allocateVExp(NULL);
-	p->type=p->EXP_APPLY;
+	p->type=EXP_APPLY;
 	p->ap_f=ap_f;
 	p->ap_x=ap_x;
 	return p;
 }
-VExp * newVExpNumfunc(VExp::FuncType func_type){ //returns: new
+VExp * newVExpNumfunc(FuncType func_type){ //returns: new
 	VExp * p=allocateVExp(NULL);
-	p->type=p->EXP_NUMFUNC;
+	p->type=EXP_NUMFUNC;
 	p->func_type=func_type;
 	return p;
 }
-VExp * newVExpNumfunc1(VExp::FuncType func1_type,Number func1_opa){ //returns: new
+VExp * newVExpNumfunc1(FuncType func1_type,Number func1_opa){ //returns: new
 	VExp * p=allocateVExp(NULL);
-	p->type=p->EXP_NUMFUNC1;
+	p->type=EXP_NUMFUNC1;
 	p->func1_type=func1_type;
 	p->func1_opa=func1_opa;
 	return p;
 }
 VExp * newVExpIntList(IntList * intlist_val){ //intlist_val: consumed    returns: new
 	VExp * p=allocateVExp(NULL);
-	p->type=p->EXP_INTLIST;
+	p->type=EXP_INTLIST;
 	p->intlist_val=intlist_val;
 	return p;
 }
-VExp * newVExpSyscall0(VExp::SyscallType sys_type){//returns: new
+VExp * newVExpSyscall0(SyscallType sys_type){//returns: new
 	VExp * p=allocateVExp(NULL);
-	p->type=p->EXP_SYSCALL;
+	p->type=EXP_SYSCALL;
 	p->sys_type=sys_type;
 	p->sys_nbind=0;
 	return p;
@@ -238,24 +287,24 @@ VExp * appendSyscallArg(VExp * exp,Value * x,const char ** error_message,Value *
 		int argid=exp->sys_nbind;
 		int argtype=syscall_arginfo[exp->sys_type][1+argid];
 		if (argtype!=2){
-			if (x->type!=x->VALUE_RESOLVED && x->type!=x->VALUE_EXCEPTION){
+			if (x->type!=VALUE_RESOLVED && x->type!=VALUE_EXCEPTION){
 				to_resolve[0]=x;
 				return NULL;
 			}
 		}
 		if (argtype==0){
-			if (x->exp->type!=x->exp->EXP_NUM || x->exp->num_val.type!=x->exp->num_val.NUM_INT){
+			if (x->exp->type!=EXP_NUM || x->exp->num_val.type!=NUM_INT){
 				error_message[0]="cannot apply non-integer value to syscall";
 				return NULL;
 			}
 		}else if (argtype==1){
-			if (x->exp->type!=x->exp->EXP_INTLIST){
+			if (x->exp->type!=EXP_INTLIST){
 				error_message[0]="cannot apply non-intlist value to syscall";
 				return NULL;
 			}
 		}//else argtype=2
 		VExp * nexp=allocateVExp(NULL);
-		nexp->type=nexp->EXP_SYSCALL;
+		nexp->type=EXP_SYSCALL;
 		nexp->sys_type=exp->sys_type;
 		nexp->sys_nbind=exp->sys_nbind+1;
 		if (exp->sys_nbind>0){
@@ -291,67 +340,55 @@ VExp * appendSyscallArg(VExp * exp,Value * x,const char ** error_message,Value *
 	}
 }
 
-typedef struct ValueStack{
-	Value * val;
-	ValueStack * next;
-}ValueStack;
-
-Continuation * newContinuation();
-ValueStack * newValueStack();
-VContext * retainVContext(VContext * context);
-Value * lookUpRef(int ref,VContext * context);
-VContext * insertRef(Value *,VContext * context);
-void displayExp(VExp * e);
-
 Value * resolveValue(Value * v){ // v : stolen    returns: stolen
 	//v->type must be VALUE_RUNNING
 	Continuation * cont=v->r_cont;
 	if (!cont){
 		VExp * exp=v->r_exp;
 		VContext * context=v->r_context;
-		v->type=v->VALUE_RESOLVED;
+		v->type=VALUE_RESOLVED;
 		v->exp=exp;
 		v->context=context;
-	}else if (cont->type==cont->CONT_EVAL){
+	}else if (cont->type==CONT_EVAL){
 		VExp * exp=cont->eval_exp;
 		VContext * context=cont->eval_context;
-		if (exp->type<exp->EXP_WHNF){
+		if (exp->type<EXP_WHNF){
 			Continuation * ncont=cont->cont;
-			v->type=v->VALUE_RUNNING;
+			v->type=VALUE_RUNNING;
 			v->r_exp=retainVExp(exp);
 			v->r_context=retainVContext(context);
 			v->r_cont=ncont;
-		}if (exp->type==exp->EXP_REF){
+		}if (exp->type==EXP_REF){
 			int ref=exp->ref_val;
 			Value * ref_val=lookUpRef(ref,context);
-			if (ref_val->type==ref_val->VALUE_RESOLVED){
+			if (ref_val->type==VALUE_RESOLVED){
 				v->r_exp=retainVExp(ref_val->exp);
 				v->r_context=retainVContext(ref_val->context);
 				v->r_cont=cont->cont;
-			}else if(ref_val->type==ref_val->VALUE_EXCEPTION){
-				v->type=v->VALUE_EXCEPTION;
+			}else if(ref_val->type==VALUE_EXCEPTION){
+				v->type=VALUE_EXCEPTION;
 				v->message=ref_val->message;
 			}else{
 				return ref_val;
 			}
-		}else if (exp->type==exp->EXP_APPLY){
+		}else if (exp->type==EXP_APPLY){
 			VExp * f=exp->ap_f;
 			VExp * x=exp->ap_x;
 			Value * nvx=newValue();
-			nvx->type=nvx->VALUE_RUNNING;
+			nvx->type=VALUE_RUNNING;
 			nvx->r_exp=NULL;
 			nvx->r_context=NULL;
 			nvx->r_cont=newContinuation();
-			nvx->r_cont->type=nvx->r_cont->CONT_EVAL;
+			nvx->r_cont->type=CONT_EVAL;
 			nvx->r_cont->eval_exp=x;
 			nvx->r_cont->eval_context=context;
 			nvx->r_cont->cont=NULL;
 			Continuation * ncont=newContinuation();
-			ncont->type=ncont->CONT_APPLY;
+			ncont->type=CONT_APPLY;
 			ncont->cont=cont->cont;
 			ncont->ap_x=nvx;
 			Continuation * ncont2=newContinuation();
-			ncont2->type=ncont2->CONT_EVAL;
+			ncont2->type=CONT_EVAL;
 			ncont2->eval_exp=f;
 			ncont2->eval_context=context;
 			ncont2->cont=ncont;
@@ -359,40 +396,40 @@ Value * resolveValue(Value * v){ // v : stolen    returns: stolen
 			v->r_context=NULL;
 			v->r_cont=ncont2;
 		}
-	}else if (cont->type==cont->CONT_APPLY){
+	}else if (cont->type==CONT_APPLY){
 		VExp * exp=v->r_exp;
 		VContext * context=v->r_context;
 		Value * x = cont->ap_x;
-		if (exp->type==exp->EXP_NUM){
-			v->type=v->VALUE_EXCEPTION;
+		if (exp->type==EXP_NUM){
+			v->type=VALUE_EXCEPTION;
 			v->message="cannot use numeric value as function";
-		}else if (exp->type==exp->EXP_ABS){
+		}else if (exp->type==EXP_ABS){
 			VContext * ncontext=insertRef(x,context);
-			cont->type=cont->CONT_EVAL;
+			cont->type=CONT_EVAL;
 			cont->eval_exp=exp;
 			cont->eval_context=ncontext;
 			v->r_exp=NULL;
 			v->r_context=NULL;
-		}else if (exp->type==exp->EXP_NUMFUNC){
-			if (x->type!=x->VALUE_RESOLVED && x->type!=x->VALUE_EXCEPTION){
+		}else if (exp->type==EXP_NUMFUNC){
+			if (x->type!=VALUE_RESOLVED && x->type!=VALUE_EXCEPTION){
 				return x;
 			}
-			if (x->type==x->VALUE_EXCEPTION){
+			if (x->type==VALUE_EXCEPTION){
 				const char * message=x->message;
-				v->type=v->VALUE_EXCEPTION;
+				v->type=VALUE_EXCEPTION;
 				v->message=message;
-			}else if (x->exp->type!=x->exp->EXP_NUM){
-				v->type=v->VALUE_EXCEPTION;
+			}else if (x->exp->type!=EXP_NUM){
+				v->type=VALUE_EXCEPTION;
 				v->message="cannot apply built-in function on non-numeric value";
 			}else{
 				VExp * nexp=NULL;
-				if (exp->func_type<exp->FUNC_BINARY){
+				if (exp->func_type<FUNC_BINARY){
 					nexp=newVExpNumfunc1(
 						exp->func_type,
 						x->exp->num_val
 					);
-				}else if (exp->func_type==exp->FUNC_TOINT){
-					if (x->exp->num_val.type==x->exp->num_val.NUM_INT){
+				}else if (exp->func_type==FUNC_TOINT){
+					if (x->exp->num_val.type==NUM_INT){
 						nexp=retainVExp(x->exp);
 					}else{ // must be double
 
@@ -400,8 +437,8 @@ Value * resolveValue(Value * v){ // v : stolen    returns: stolen
 							intNumber(floor(exp->num_val.double_val))
 						);
 					}
-				}else if (exp->func_type==exp->FUNC_TOFLOAT){
-					if (x->exp->num_val.type==x->exp->num_val.NUM_DOUBLE){
+				}else if (exp->func_type==FUNC_TOFLOAT){
+					if (x->exp->num_val.type==NUM_DOUBLE){
 						nexp=retainVExp(x->exp);
 					}else{ // must be int
 						nexp=newVExpNum(
@@ -414,49 +451,49 @@ Value * resolveValue(Value * v){ // v : stolen    returns: stolen
 				v->r_context=NULL;
 				v->r_cont=ncont;
 			}
-		}else if (exp->type==exp->EXP_NUMFUNC1){
-			if (x->type!=x->VALUE_RESOLVED && x->type!=x->VALUE_EXCEPTION){
+		}else if (exp->type==EXP_NUMFUNC1){
+			if (x->type!=VALUE_RESOLVED && x->type!=VALUE_EXCEPTION){
 				return x;
 			}
-			if (x->type==x->VALUE_EXCEPTION){
+			if (x->type==VALUE_EXCEPTION){
 				const char * message=x->message;
-				v->type=v->VALUE_EXCEPTION;
+				v->type=VALUE_EXCEPTION;
 				v->message=message;
-			}else if (x->exp->type!=x->exp->EXP_NUM){
-				v->type=v->VALUE_EXCEPTION;
+			}else if (x->exp->type!=EXP_NUM){
+				v->type=VALUE_EXCEPTION;
 				v->message="cannot apply built-in function on non-numeric value";
 			}else{
 				const char * exception_message=NULL;
 				Number result;
 				bool is_bool=false,result_bool;
-				if (exp->func1_type==exp->FUNC_ADD){
+				if (exp->func1_type==FUNC_ADD){
 					result=addNumber(exp->func1_opa,x->exp->num_val);
-				}else if (exp->func1_type==exp->FUNC_SUB){
+				}else if (exp->func1_type==FUNC_SUB){
 					result=subNumber(exp->func1_opa,x->exp->num_val);
-				}else if (exp->func1_type==exp->FUNC_MUL){
+				}else if (exp->func1_type==FUNC_MUL){
 					result=mulNumber(exp->func1_opa,x->exp->num_val);
-				}else if (exp->func1_type==exp->FUNC_DIV){
+				}else if (exp->func1_type==FUNC_DIV){
 					result=divNumber(exp->func1_opa,x->exp->num_val,&exception_message);
-				}else if (exp->func1_type==exp->FUNC_MOD){
+				}else if (exp->func1_type==FUNC_MOD){
 					result=divNumber(exp->func1_opa,x->exp->num_val,&exception_message);
 				}else{
 					is_bool=true;
-					if (exp->func1_type==exp->FUNC_LE){
+					if (exp->func1_type==FUNC_LE){
 						result_bool=leNumber(exp->func1_opa,x->exp->num_val);
-					}else if (exp->func1_type==exp->FUNC_GE){
+					}else if (exp->func1_type==FUNC_GE){
 						result_bool=geNumber(exp->func1_opa,x->exp->num_val);
-					}else if (exp->func1_type==exp->FUNC_NLE){
+					}else if (exp->func1_type==FUNC_NLE){
 						result_bool=nleNumber(exp->func1_opa,x->exp->num_val);
-					}else if (exp->func1_type==exp->FUNC_NGE){
+					}else if (exp->func1_type==FUNC_NGE){
 						result_bool=ngeNumber(exp->func1_opa,x->exp->num_val);
-					}else if (exp->func1_type==exp->FUNC_EQ){
+					}else if (exp->func1_type==FUNC_EQ){
 						result_bool=eqNumber(exp->func1_opa,x->exp->num_val);
-					}else if (exp->func1_type==exp->FUNC_NEQ){
+					}else if (exp->func1_type==FUNC_NEQ){
 						result_bool=neqNumber(exp->func1_opa,x->exp->num_val);
 					}
 				}
 				if (exception_message!=NULL){
-					v->type=v->VALUE_EXCEPTION;
+					v->type=VALUE_EXCEPTION;
 					v->message=exception_message;
 				}else{
 					VExp * nexp=NULL;
@@ -485,19 +522,19 @@ Value * resolveValue(Value * v){ // v : stolen    returns: stolen
 					v->r_cont=ncont;
 				}
 			}
-		}else if (exp->type==exp->EXP_INTLIST){
-			if (x->type!=x->VALUE_RESOLVED && x->type!=x->VALUE_EXCEPTION){
+		}else if (exp->type==EXP_INTLIST){
+			if (x->type!=VALUE_RESOLVED && x->type!=VALUE_EXCEPTION){
 				return x;
 			}
-			if (x->type==x->VALUE_EXCEPTION){
+			if (x->type==VALUE_EXCEPTION){
 				const char * message=x->message;
-				v->type=v->VALUE_EXCEPTION;
+				v->type=VALUE_EXCEPTION;
 				v->message=message;
-			}else if (x->exp->type!=x->exp->EXP_NUM){
-				v->type=v->VALUE_EXCEPTION;
+			}else if (x->exp->type!=EXP_NUM){
+				v->type=VALUE_EXCEPTION;
 				v->message="cannot apply built-in function on non-numeric value";
-			}else if (x->exp->num_val.type!=x->exp->num_val.NUM_INT){
-				v->type=v->VALUE_EXCEPTION;
+			}else if (x->exp->num_val.type!=NUM_INT){
+				v->type=VALUE_EXCEPTION;
 				v->message="cannot append non-integer number to IntList";
 			}else{
 				VExp * nexp=newVExpIntList(
@@ -511,13 +548,13 @@ Value * resolveValue(Value * v){ // v : stolen    returns: stolen
 				v->r_context=NULL;
 				v->r_cont=ncont;
 			}
-		}else if (exp->type==exp->EXP_SYSCALL){
+		}else if (exp->type==EXP_SYSCALL){
 			Value * to_resolve;
 			const char * error_message;
 			VExp * nexp=appendSyscallArg(exp,x,&error_message,&to_resolve);
 			if (!nexp){
 				if (error_message){
-					v->type=v->VALUE_EXCEPTION;
+					v->type=VALUE_EXCEPTION;
 					v->message=error_message;
 				}else if (to_resolve){
 					return to_resolve;
@@ -537,7 +574,7 @@ void resolveAllValue(Value * v){
 	head->val=v;
 	head->next=NULL;
 	while (head){
-		if (head->val->type!=head->val->VALUE_RESOLVED && head->val->type!=head->val->VALUE_RUNNING){
+		if (head->val->type!=VALUE_RESOLVED && head->val->type!=VALUE_RUNNING){
 			Value * depends=resolveValue(head->val);
 			if (depends!=NULL && depends!=head->val){
 				ValueStack *nhead=newValueStack();
@@ -566,15 +603,15 @@ int executeValue(Value * v,int argc,char ** args){
 	files_buflen=2;
 	int exitcode=0;
 	while (true){
-		if (v->type!=v->VALUE_RESOLVED && v->type!=v->VALUE_RUNNING){
+		if (v->type!=VALUE_RESOLVED && v->type!=VALUE_EXCEPTION){
 			resolveAllValue(v);
 		}
-		if (v->type==v->VALUE_EXCEPTION){
+		if (v->type==VALUE_EXCEPTION){
 			printf("exception: %s\n",v->message);
 			exitcode=1;
 			break;
 		}
-		if (v->exp->type!=v->exp->EXP_SYSCALL){
+		if (v->exp->type!=EXP_SYSCALL){
 			displayExp(v->exp);
 			exitcode=0;
 			break;
@@ -586,10 +623,10 @@ int executeValue(Value * v,int argc,char ** args){
 			break;
 		}
 		int resultcode=0;
-		if (v->exp->sys_type==v->exp->SYS_EXIT){
+		if (v->exp->sys_type==SYS_EXIT){
 			exitcode=v->exp->sys_arg1.int_val;
 			break;
-		}else if (v->exp->sys_type==v->exp->SYS_OPEN){
+		}else if (v->exp->sys_type==SYS_OPEN){
 			int mode=v->exp->sys_arg2;
 			//efOpenModes = [ReadMode,WriteMode,AppendMode,ReadWriteMode]
 			const char * open_mode;
@@ -630,7 +667,7 @@ int executeValue(Value * v,int argc,char ** args){
 					resultcode=position;
 				}
 			}
-		}else if (v->exp->sys_type==v->exp->SYS_READ){
+		}else if (v->exp->sys_type==SYS_READ){
 			int fileid=v->exp->sys_arg1.int_val;
 			if (fileid<0 || fileid>=files_buflen || files[fileid]==NULL){
 				resultcode=-2;
@@ -638,7 +675,7 @@ int executeValue(Value * v,int argc,char ** args){
 				FILE * fin=files[fileid];
 				resultcode=fgetc(fin);
 			}
-		}else if (v->exp->sys_type==v->exp->SYS_WRITE){
+		}else if (v->exp->sys_type==SYS_WRITE){
 			int fileid=v->exp->sys_arg1.int_val;
 			if (fileid<0 || fileid>=files_buflen || files[fileid]==NULL){
 				resultcode=-2;
@@ -646,7 +683,7 @@ int executeValue(Value * v,int argc,char ** args){
 				FILE * fout=files[fileid];
 				resultcode=fputc(v->exp->sys_arg2,fout);
 			}
-		}else if (v->exp->sys_type==v->exp->SYS_GETARG){
+		}else if (v->exp->sys_type==SYS_GETARG){
 			if (cur_argi<argc && cur_arg[0]!=0){
 				resultcode=cur_arg[0];
 				cur_arg++;
@@ -658,7 +695,7 @@ int executeValue(Value * v,int argc,char ** args){
 			}else{
 				resultcode=-1;
 			}
-		}else if (v->exp->sys_type==v->exp->SYS_CLOSE){
+		}else if (v->exp->sys_type==SYS_CLOSE){
 			int fileid=v->exp->sys_arg1.int_val;
 			if (fileid<0 || fileid>=files_buflen || files[fileid]==NULL){
 				resultcode=-2;
@@ -666,28 +703,28 @@ int executeValue(Value * v,int argc,char ** args){
 				resultcode=fclose(files[fileid]);
 				files[fileid]=NULL;
 			}
-		}else if (v->exp->sys_type==v->exp->SYS_SYSTEM){
+		}else if (v->exp->sys_type==SYS_SYSTEM){
 			char * filename=convertIntListToString(v->exp->sys_arg1.intlist_val);
 			resultcode=system(filename);
 			free(filename);
 		}//else    other syscall
 		Value * sys_cont=v->exp->sys_cont;
 		resolveAllValue(sys_cont);
-		if (sys_cont->type==sys_cont->VALUE_EXCEPTION){
+		if (sys_cont->type==VALUE_EXCEPTION){
 			v=sys_cont;
 		}else{
 			Value * rv=newValue();
-			rv->type=rv->VALUE_RESOLVED;
+			rv->type=VALUE_RESOLVED;
 			rv->exp=newVExpNum(
 				intNumber(resultcode)
 			);
 			rv->context=NULL;
 			Continuation * ncont=newContinuation();
-			ncont->type=ncont->CONT_APPLY;
+			ncont->type=CONT_APPLY;
 			ncont->ap_x=rv;
 			ncont->cont=NULL;
 			Value * nv=newValue();
-			nv->type=nv->VALUE_RUNNING;
+			nv->type=VALUE_RUNNING;
 			nv->r_exp=sys_cont->exp;
 			nv->r_context=sys_cont->context;
 			nv->r_cont=ncont;
@@ -696,6 +733,87 @@ int executeValue(Value * v,int argc,char ** args){
 	}
 	free(files);
 	return exitcode;
+}
+
+VExp * makeApply(VExp * f,VExp * x){
+    return newVExpApply(f,x);
+}
+
+VExp * makeInt(int a){
+    Number num_val;
+    num_val.type = NUM_INT;
+    num_val.int_val = a;
+    return newVExpNum(num_val);
+}
+
+VExp * makeDouble(double a){
+    Number num_val;
+    num_val.type = NUM_DOUBLE;
+    num_val.double_val = a;
+    return newVExpNum(num_val);
+}
+
+VExp * makeAbs(VExp* abs_val){
+    return newVExpAbs(abs_val);
+}
+
+VExp * makeRef(int ref_val){
+    return newVExpRef(ref_val);
+}
+
+//unfinished
+VExp * makeBuiltin(char* func_name){
+    FuncType func_type;
+    SyscallType syscall_type;
+    bool isFunc = false;
+    bool isSyscall = false;
+    if (strcmp(func_name,"+")==0){
+        func_type = FUNC_ADD;
+        isFunc = true;
+    }else if (strcmp(func_name,"-")==0){
+        func_type = FUNC_SUB;
+        isFunc = true;
+    }else if (strcmp(func_name,"*")==0){
+        func_type = FUNC_MUL;
+        isFunc = true;
+    }else if (strcmp(func_name,"/")==0){
+        func_type = FUNC_DIV;
+        isFunc = true;
+    }else if (strcmp(func_name,"%")==0){
+        func_type = FUNC_MOD;
+        isFunc = true;
+    }else if (strcmp(func_name,"<")==0){
+        func_type = FUNC_LE;
+        isFunc = true;
+    }else if (strcmp(func_name,">=")==0){
+        func_type = FUNC_NLE;
+        isFunc = true;
+    }else if (strcmp(func_name,">")==0){
+        func_type = FUNC_GE;
+        isFunc = true;
+    }else if (strcmp(func_name,"<=")==0){
+        func_type = FUNC_NGE;
+        isFunc = true;
+    }else if (strcmp(func_name,"/=")==0){
+        func_type = FUNC_NEQ;
+        isFunc = true;
+    }else if (strcmp(func_name,"=")==0){
+        func_type = FUNC_EQ;
+        isFunc = true;
+    }else if (strcmp(func_name,"toInt")==0){
+        func_type = FUNC_TOINT;
+        isFunc = true;
+    }else if (strcmp(func_name,"toFloat")==0){
+        func_type = FUNC_TOFLOAT;
+        isFunc = true;
+    }
+
+    if (isFunc){
+        return newVExpNumfunc(func_type);
+    }
+    if (isSyscall){
+        return newVExpSyscall0(syscall_type);
+    }
 }
 
 int main()
