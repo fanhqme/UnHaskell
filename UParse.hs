@@ -210,8 +210,10 @@ parseSSExp (tree,sp) = case tree of
 		(e1,p1) <- parseSSExp f
 		constructApplySugar r (e1,p1)
 	where
-		constructStrSugar [] sp = ((SSRef "empty"),sp)
-		constructStrSugar (a:ar) sp = ((SSApply (SSApply (SSRef "cons",sp) ((SSInt (ord a)),sp),sp) (constructStrSugar ar sp)),sp)
+		--constructStrSugar [] sp = ((SSRef "empty"),sp)
+		constructStrSugar [] sp = (SSLambda "f" (SSLambda "g" (SSRef "f",sp),sp),sp)
+		--constructStrSugar (a:ar) sp = ((SSApply (SSApply (SSRef "cons",sp) ((SSInt (ord a)),sp),sp) (constructStrSugar ar sp)),sp)
+		constructStrSugar (a:ar) sp = (SSLambda "f" (SSLambda "g" (SSApply (SSApply (SSRef "g",sp) (SSInt (ord a),sp),sp) (constructStrSugar ar sp),sp),sp),sp)
 		constructLambdaSugar [] p = SFail "incomplete lambda expression" p
 		constructLambdaSugar (_:[]) p = SFail "incomplete lambda expression" p
 		constructLambdaSugar ((STTNode (STAtom name),p1):body:[]) p = do
@@ -222,11 +224,13 @@ parseSSExp (tree,sp) = case tree of
 			(ebody,pb) <- constructLambdaSugar r p
 			return ((SSLambda name (ebody,pb)),p1)
 		constructLambdaSugar ((_,p1):_) p = SFail "lambda expression needs a variable name" p1
-		constructListSugar [] p = return ((SSRef "empty"),p)
+		-- constructListSugar [] p = return ((SSRef "empty"),p)
+		constructListSugar [] p = return (SSLambda "f" (SSLambda "g" (SSRef "f",p),p),p)
 		constructListSugar (f:r) p = do
 			(e1,p1) <- parseSSExp f
 			(remain,p2) <- constructListSugar r p
-			return ((SSApply ((SSApply ((SSRef "cons"),p1) (e1,p1)),p1) (remain,p2)),p1)
+			--return ((SSApply ((SSApply ((SSRef "cons"),p1) (e1,p1)),p1) (remain,p2)),p1)
+			return (SSLambda "f" (SSLambda "g" (SSApply (SSApply (SSRef "g",p1) (e1,p1),p1) (remain,p2),p1),p1),p1)
 		constructApplySugar [] (e,p) = SSucc (e,p)
 		constructApplySugar (f:r) (e,p) = do
 			(e1,p1) <- parseSSExp f
