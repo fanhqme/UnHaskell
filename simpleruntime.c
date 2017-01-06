@@ -112,9 +112,9 @@ struct Value{
 			VContext * r_context;
 			Continuation * r_cont;
 		};
+		Value * pool_next;
 	};
 	int refcount;
-	Value * pool_next;
 };
 struct Continuation{
 	ContType type;
@@ -126,52 +126,112 @@ struct Continuation{
 		struct{ //CONT_APPLY
 			Value * ap_x; // unresolved
 		};
-		Continuation * cont;
+		//
 	};
+	Continuation * cont;
 };
 typedef struct ValueStack{
 	Value * val;
 	struct ValueStack * next;
 }ValueStack;
+typedef struct VContext{
+    Value* val;
+    struct VContext * next;
+    struct VContext * prev;
+    int refcount;
+}   VContext;
 
-Value* newValue(){
+//===========================================================
+Value * releaseValue(Value *);
+//===========================================================
 
+VContext * allocateVContext(VContext * p){
+	static VContext * pool=NULL;
+	if (!p){
+		if (!pool){
+			VContext * p=(VContext *)malloc(sizeof(VContext)*1000);
+			for (int i=0;i<1000;i++){
+				p[i].next=pool;
+				pool=p+i;
+			}
+		}
+		p=pool;
+		p->refcount=1;
+		pool=pool->next;
+		return p;
+	}else{
+		p->next=pool;
+		pool=p;
+		return NULL;
+	}
 }
 
-Value * releaseValue(Value * p){
-
-}
-
-Value * retainValue(Value * p){
-
-}
-
-Value * lookUpRef(int ref,VContext * context){
-
-}
-
-VContext * releaseVContext(VContext * p){
-
+VContext * newVContext(){
+    VContext * p = allocateVContext(NULL);
+    p->next = NULL;
+    p->prev = NULL;
+    p->val = NULL;
+    return p;
 }
 
 VContext * retainVContext(VContext * p){
-
+    if (p){
+        p->refcount++;
+    }
+    return p;
 }
 
-Continuation * newContinuation(){
-
+VContext * releaseVContext(VContext * p){
+	if (p){
+		p->refcount--;
+		if (p->refcount==0){
+			if (p->next){
+				releaseVContext(p);
+			}
+			allocateVContext(p);
+		}
+	}
+	return NULL;
 }
 
-ValueStack * newValueStack(){
-
+Value * lookUpRef(int ref,VContext * context){
+    for (int i=0;i<ref;++i){
+        context = context->prev;
+    }
+    return context->val;
 }
 
 VContext * insertRef(Value * v,VContext * context){
-
+    VContext * ncontext = newVContext();
+    ncontext->prev = context;
+    context->next = ncontext;
+    return ncontext;
 }
 
-void displayExp(VExp * e){
+//===========================================================
 
+Continuation * newContinuation(){
+    return (Continuation *)malloc(sizeof(Continuation));
+}
+
+Continuation * releaseContinuation(Continuation * p){
+    free(p);
+    return NULL;
+}
+
+//===========================================================
+
+void displayExp(VExp * e){
+    if (e->type==EXP_NUM) {
+        Number num_val = e->num_val;
+        if (num_val.type==NUM_INT){
+            printf("%d",num_val.int_val);
+        }else{
+            printf("%f",num_val.double_val);
+        }
+    }else {
+        printf("Not a number");
+    }
 }
 
 VExp * allocateVExp(VExp * p){
@@ -225,6 +285,72 @@ VExp * releaseVExp(VExp * p){  // p: consumed   returns: NULL
 	}
 	return NULL;
 }
+
+//===========================================================
+
+Value * allocateValue(Value * p){
+	static Value * pool=NULL;
+	if (!p){
+		if (!pool){
+			Value * p=(Value *)malloc(sizeof(Value)*1000);
+			for (int i=0;i<1000;i++){
+				p[i].pool_next=pool;
+				pool=p+i;
+			}
+		}
+		p=pool;
+		p->refcount=1;
+		pool=pool->pool_next;
+		return p;
+	}else{
+		p->pool_next=pool;
+		pool=p;
+		return NULL;
+	}
+}
+
+Value* newValue(){
+    Value * p = allocateValue(NULL);
+    p->type = VALUE_RUNNING;
+    return p;
+}
+
+Value * releaseValue(Value * p){
+    if (p){
+        p->refcount--;
+        if (p->refcount==0){
+            if (p->type==VALUE_RESOLVED){
+                releaseVExp(p->exp);
+                releaseVContext(p->context);
+            } else if (p->type==VALUE_RUNNING){
+                releaseVExp(p->r_exp);
+                releaseVContext(p->r_context);
+                releaseContinuation(p->r_cont);
+            } else if (p->type==VALUE_EXCEPTION){
+
+            }
+        }
+        allocateValue(p);
+    }
+    return NULL;
+}
+
+Value * retainValue(Value * p){
+    if (p){
+        p->refcount++;
+    }
+    return p;
+}
+
+//===========================================================
+
+ValueStack * newValueStack(){
+    ValueStack * p = malloc(sizeof(ValueStack));
+    p->next = NULL;
+    p->val = NULL;
+    return p;
+}
+
 VExp * newVExpNum(Number num_val){ //returns: new
 	VExp * p=allocateVExp(NULL);
 	p->type=EXP_NUM;
@@ -395,6 +521,7 @@ Value * resolveValue(Value * v){ // v : stolen    returns: stolen
 			v->r_exp=NULL;
 			v->r_context=NULL;
 			v->r_cont=ncont2;
+			//return nvx;
 		}
 	}else if (cont->type==CONT_APPLY){
 		VExp * exp=v->r_exp;
@@ -434,7 +561,7 @@ Value * resolveValue(Value * v){ // v : stolen    returns: stolen
 					}else{ // must be double
 
 						nexp=newVExpNum(
-							intNumber(floor(exp->num_val.double_val))
+							intNumber(floor(x->exp->num_val.double_val))
 						);
 					}
 				}else if (exp->func_type==FUNC_TOFLOAT){
@@ -442,7 +569,7 @@ Value * resolveValue(Value * v){ // v : stolen    returns: stolen
 						nexp=retainVExp(x->exp);
 					}else{ // must be int
 						nexp=newVExpNum(
-							doubleNumber((double)(exp->num_val.int_val))
+							doubleNumber((double)(x->exp->num_val.int_val))
 						);
 					}
 				} // cannot be else
@@ -574,7 +701,7 @@ void resolveAllValue(Value * v){
 	head->val=v;
 	head->next=NULL;
 	while (head){
-		if (head->val->type!=VALUE_RESOLVED && head->val->type!=VALUE_RUNNING){
+		if (head->val->type!=VALUE_RESOLVED && head->val->type!=VALUE_EXCEPTION){
 			Value * depends=resolveValue(head->val);
 			if (depends!=NULL && depends!=head->val){
 				ValueStack *nhead=newValueStack();
@@ -816,8 +943,30 @@ VExp * makeBuiltin(char* func_name){
     }
 }
 
+void executeVExp(VExp * exp){
+    Value * v = newValue();
+    VContext * context = newVContext();
+    Continuation * cont = newContinuation();
+    cont->type = CONT_EVAL;
+    cont->eval_exp = exp;
+    cont->eval_context = context;
+    v->r_exp = NULL;
+    v->r_context = NULL;
+    v->r_cont = cont;
+    executeValue(v, 0, NULL);
+}
+
 int main()
 {
-	return 0;
+	executeVExp(
+        makeApply(
+            makeApply(
+                makeBuiltin("+"),
+                makeInt(1)
+            ),
+            makeInt(2)
+        )
+    );
+    //executeVExp(makeApply(makeBuiltin("toFloat"),makeInt(10)));
 }
 
