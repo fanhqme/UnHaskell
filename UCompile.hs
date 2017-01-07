@@ -4,7 +4,16 @@ import qualified Data.Map as Map
 
 compileToC :: LExpr -> [Char]
 compileToC l = header++compileToCS l (Map.fromList []) 0 footer where
-	header="void main_program(){\nexecuteVExp("
+	header="typedef struct VExp VExp;\n\
+		\VExp * makeBuiltin(const char* func_name);\n\
+		\VExp * makeInt(int a);\n\
+		\VExp * makeDouble(double a);\n\
+		\VExp * makeAbs(VExp* abs_val);\n\
+		\VExp * makeRef(int ref_val);\n\
+		\VExp * makeApply(VExp * f,VExp * x);\n\
+		\int executeVExp(VExp * exp);\n\
+		\int main(){\n\
+		\return executeVExp("
 	footer=");\n}"
 	compileToCS :: LExpr -> Map.Map [Char] Int -> Int -> ShowS
 	compileToCS l names curlevel = case l of

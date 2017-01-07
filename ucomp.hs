@@ -13,6 +13,7 @@ main = do
 		putStrLn "ucomp: ifname.u"
 	else do
 		let ifname = head args
+		let outputc = "-c" `elem` (tail args)
 		if not$isSuffixOf ".u" ifname then do
 			putStrLn "filename must end with .u"
 		else do
@@ -22,12 +23,13 @@ main = do
 				MFail msg modname pos -> putStrLn ("error loading "++modname++" at "++(show pos)++": "++msg)
 				MSucc (MLoadContext loaded curchain)
 					| (not (Set.member "main.main" loaded)) -> putStrLn "main.main not defined"
+					| outputc -> do
+						fout <- openFile (basename++".c") WriteMode
+						hPutStrLn fout$compileToC$assembleChainLExpr curchain (LRef "main.main")
+						hClose fout
 					| otherwise -> do
 						let llname = (basename ++ ".ll")
 						let sname = (basename ++ ".s")
-						-- fout <- openFile (ifname++"c") WriteMode
-						-- hPutStrLn fout$compileToC$assembleChainLExpr curchain (LRef "main.main")
-						-- hClose fout
 						fout <- openFile llname WriteMode
 						hPutStrLn fout$compileToLLVM$assembleChainLExpr curchain (LRef "main.main")
 						hClose fout
