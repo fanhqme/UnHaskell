@@ -806,13 +806,18 @@ int executeValue(Value * v,int argc,char ** args){
 						}
 					}
 					if (position==-1){
-						files=(FILE**)realloc(files,sizeof(FILE*)*files_buflen*2);
+						FILE ** nfiles=(FILE**)realloc(files,sizeof(FILE*)*files_buflen*2);
 						for (int i=0;i<files_buflen;i++){
-							files[i]=NULL;
+							nfiles[i]=files[i];
+						}
+						for (int i=0;i<files_buflen;i++){
+							nfiles[i+files_buflen]=NULL;
 						}
 						position=files_buflen;
 						files_buflen*=2;
+						files=nfiles;
 					}
+					files[position]=f;
 					resultcode=position;
 				}
 			}
@@ -984,8 +989,14 @@ VExp * makeBuiltin(const char* func_name){
         return newVExpSyscall0(SYS_PEEK);
     }else if (strcmp(func_name,"close")==0){
         return newVExpSyscall0(SYS_CLOSE);
+    }else if (strcmp(func_name,"openCmd")==0){
+        return newVExpSyscall0(SYS_OPEN);
     }else if (strcmp(func_name,"makeIntList")==0){
         return newVExpIntList(NULL);
+    }else if (strcmp(func_name,"getArg")==0){
+        return newVExpSyscall0(SYS_GETARG);
+    }else if (strcmp(func_name,"systemCmd")==0){
+        return newVExpSyscall0(SYS_SYSTEM);
     }
 
 
@@ -1011,12 +1022,27 @@ int executeVExp(VExp * exp){
     return executeValue(v, 0, NULL);
 }
 
-/*int main()
+int main()
 {
-    int resultcode;
+    int resultcode =executeVExp(makeApply(
+makeAbs(
+makeRef(0)),
+makeApply(
+makeApply(
+makeBuiltin("systemCmd"),
+makeApply(
+makeApply(
+makeBuiltin("makeIntList"),
+makeInt(115)),
+makeInt(108))),
+makeAbs(
+makeApply(
+makeBuiltin("exit"),
+makeInt(0))))));
+
 
     //printf("\nhere\n");
-    printf("%d",resultcode);
+    //printf("%d",resultcode);
 
 }
-*/
+
