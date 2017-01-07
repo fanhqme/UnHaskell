@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
-
+#include <string.h>
 #include "number.c"
 #include "intlist.c"
 
@@ -41,6 +41,7 @@ typedef enum{
 		SYS_CLOSE,
 		SYS_READ,
 		SYS_WRITE,
+		SYS_PEEK,
 		SYS_GETARG,
 		SYS_SYSTEM
 	} SyscallType;
@@ -91,11 +92,12 @@ typedef struct VExp{
 	int refcount;
 } VExp;
 const int syscall_arginfo[7][4]={
-{2,0,-1,-1}, // SYS_EXIT   0 = int
+{1,0,-1,-1}, // SYS_EXIT   0 = int
 {3,1, 0, 2},   //SYS_OPEN,   1 = intlist  2 = cont
 {2,0, 2,-1}, //SYS_CLOSE
 {2,0, 2,-1}, //SYS_READ,
 {3,0, 0, 2}, //SYS_WRITE,
+{2,0, 2,-1}, //SYS_PEEK
 {1,2,-1,-1}, //SYS_GETARG,
 {2,1, 2,-1}  //SYS_SYSTEM
 };
@@ -136,7 +138,7 @@ typedef struct ValueStack{
 }ValueStack;
 typedef struct VContext{
     Value* val;
-    struct VContext * next;
+    //struct VContext * next;
     struct VContext * prev;
     int refcount;
 }   VContext;
@@ -151,16 +153,16 @@ VContext * allocateVContext(VContext * p){
 		if (!pool){
 			VContext * p=(VContext *)malloc(sizeof(VContext)*1000);
 			for (int i=0;i<1000;i++){
-				p[i].next=pool;
+				p[i].prev=pool;
 				pool=p+i;
 			}
 		}
 		p=pool;
 		p->refcount=1;
-		pool=pool->next;
+		pool=pool->prev;
 		return p;
 	}else{
-		p->next=pool;
+		p->prev=pool;
 		pool=p;
 		return NULL;
 	}
@@ -168,7 +170,7 @@ VContext * allocateVContext(VContext * p){
 
 VContext * newVContext(){
     VContext * p = allocateVContext(NULL);
-    p->next = NULL;
+    //p->next = NULL;
     p->prev = NULL;
     p->val = NULL;
     return p;
@@ -185,7 +187,7 @@ VContext * releaseVContext(VContext * p){
 	if (p){
 		p->refcount--;
 		if (p->refcount==0){
-			if (p->next){
+			if (p->prev){
 				releaseVContext(p);
 			}
 			allocateVContext(p);
@@ -202,9 +204,15 @@ Value * lookUpRef(int ref,VContext * context){
 }
 
 VContext * insertRef(Value * v,VContext * context){
-    VContext * ncontext = newVContext();
-    ncontext->prev = context;
-    context->next = ncontext;
+    VContext * ncontext=newVContext();
+    ncontext->val=v;
+    ncontext->prev=context;
+    //context->next = ncontext;
+    VContext * p=context;
+    while (p){
+        retainVContext(p);
+        p = p->prev;
+    }
     return ncontext;
 }
 
@@ -531,9 +539,23 @@ Value * resolveValue(Value * v){ // v : stolen    returns: stolen
 			v->type=VALUE_EXCEPTION;
 			v->message="cannot use numeric value as function";
 		}else if (exp->type==EXP_ABS){
+		    /*
 			VContext * ncontext=insertRef(x,context);
+			Continuation * ncont=newContinuation();
+			ncont->type=CONT_EVAL;
+			ncont->eval_exp=exp->abs_val;
+			ncont->eval_context=ncontext;
+			ncont->cont=cont;
+			v->r_cont=ncont;
+			//cont->type=CONT_EVAL;
+			//cont->eval_exp=exp->abs_val;
+			//cont->eval_context=ncontext;
+			v->r_exp=NULL;
+			v->r_context=NULL;
+			*/
+            VContext * ncontext=insertRef(x,context);
 			cont->type=CONT_EVAL;
-			cont->eval_exp=exp;
+			cont->eval_exp=exp->abs_val;
 			cont->eval_context=ncontext;
 			v->r_exp=NULL;
 			v->r_context=NULL;
@@ -809,6 +831,19 @@ int executeValue(Value * v,int argc,char ** args){
 			}else{
 				FILE * fout=files[fileid];
 				resultcode=fputc(v->exp->sys_arg2,fout);
+				if (resultcode==EOF)
+                    resultcode=1;
+                else resultcode=0;
+			}
+        }else if (v->exp->sys_type==SYS_PEEK){
+			int fileid=v->exp->sys_arg1.int_val;
+			if (fileid<0 || fileid>=files_buflen || files[fileid]==NULL){
+				resultcode=-2;
+			}else{
+				FILE * fin=files[fileid];
+				resultcode=fgetc(fin);
+				if (resultcode!=EOF)
+                    ungetc(resultcode,fin);
 			}
 		}else if (v->exp->sys_type==SYS_GETARG){
 			if (cur_argi<argc && cur_arg[0]!=0){
@@ -889,7 +924,7 @@ VExp * makeRef(int ref_val){
 }
 
 //unfinished
-VExp * makeBuiltin(char* func_name){
+VExp * makeBuiltin(const char* func_name){
     FuncType func_type;
     SyscallType syscall_type;
     bool isFunc = false;
@@ -933,7 +968,26 @@ VExp * makeBuiltin(char* func_name){
     }else if (strcmp(func_name,"toFloat")==0){
         func_type = FUNC_TOFLOAT;
         isFunc = true;
+    }else if (strcmp(func_name,"exit")==0){
+        return newVExpSyscall0(SYS_EXIT);
+    }else if (strcmp(func_name,"putChar")==0){
+        return newVExpApply(newVExpSyscall0(SYS_WRITE),makeInt(1));
+    }else if (strcmp(func_name,"putCharF")==0){
+        return newVExpSyscall0(SYS_WRITE);
+    }else if (strcmp(func_name,"getChar")==0){
+        return newVExpApply(newVExpSyscall0(SYS_READ),makeInt(0));
+    }else if (strcmp(func_name,"getCharF")==0){
+        return newVExpSyscall0(SYS_READ);
+    }else if (strcmp(func_name,"peekChar")==0){
+        return newVExpApply(newVExpSyscall0(SYS_PEEK),makeInt(0));
+    }else if (strcmp(func_name,"peekCharF")==0){
+        return newVExpSyscall0(SYS_PEEK);
+    }else if (strcmp(func_name,"close")==0){
+        return newVExpSyscall0(SYS_CLOSE);
+    }else if (strcmp(func_name,"makeIntList")==0){
+        return newVExpIntList(NULL);
     }
+
 
     if (isFunc){
         return newVExpNumfunc(func_type);
@@ -943,7 +997,7 @@ VExp * makeBuiltin(char* func_name){
     }
 }
 
-void executeVExp(VExp * exp){
+int executeVExp(VExp * exp){
     Value * v = newValue();
     VContext * context = newVContext();
     Continuation * cont = newContinuation();
@@ -953,12 +1007,12 @@ void executeVExp(VExp * exp){
     v->r_exp = NULL;
     v->r_context = NULL;
     v->r_cont = cont;
-    executeValue(v, 0, NULL);
+    return executeValue(v, 0, NULL);
 }
 
 int main()
 {
-	executeVExp(
+	/*executeVExp(
         makeApply(
             makeApply(
                 makeBuiltin("+"),
@@ -966,7 +1020,898 @@ int main()
             ),
             makeInt(2)
         )
-    );
+    );*/
     //executeVExp(makeApply(makeBuiltin("toFloat"),makeInt(10)));
+    /*executeVExp(makeApply(
+makeAbs(
+makeRef(1)),
+makeApply(
+makeApply(
+makeBuiltin("+"),
+makeInt(1)),
+makeInt(2))));*/
+
+    int resultcode = executeVExp(makeApply(
+makeAbs(
+makeApply(
+makeAbs(
+makeApply(
+makeAbs(
+makeApply(
+makeAbs(
+makeApply(
+makeAbs(
+makeApply(
+makeAbs(
+makeApply(
+makeAbs(
+makeApply(
+makeAbs(
+makeApply(
+makeAbs(
+makeApply(
+makeAbs(
+makeApply(
+makeAbs(
+makeApply(
+makeAbs(
+makeApply(
+makeAbs(
+makeApply(
+makeAbs(
+makeApply(
+makeAbs(
+makeApply(
+makeAbs(
+makeApply(
+makeAbs(
+makeApply(
+makeAbs(
+makeApply(
+makeAbs(
+makeApply(
+makeAbs(
+makeApply(
+makeAbs(
+makeApply(
+makeAbs(
+makeApply(
+makeAbs(
+makeApply(
+makeAbs(
+makeApply(
+makeAbs(
+makeApply(
+makeAbs(
+makeApply(
+makeAbs(
+makeApply(
+makeAbs(
+makeApply(
+makeAbs(
+makeApply(
+makeAbs(
+makeApply(
+makeAbs(
+makeApply(
+makeAbs(
+makeApply(
+makeAbs(
+makeApply(
+makeAbs(
+makeApply(
+makeAbs(
+makeApply(
+makeAbs(
+makeApply(
+makeAbs(
+makeApply(
+makeAbs(
+makeApply(
+makeAbs(
+makeApply(
+makeAbs(
+makeApply(
+makeAbs(
+makeApply(
+makeAbs(
+makeApply(
+makeAbs(
+makeApply(
+makeAbs(
+makeApply(
+makeAbs(
+makeApply(
+makeAbs(
+makeApply(
+makeAbs(
+makeApply(
+makeAbs(
+makeApply(
+makeAbs(
+makeApply(
+makeAbs(
+makeApply(
+makeAbs(
+makeRef(0)),
+makeApply(
+makeApply(
+makeRef(0),
+makeAbs(
+makeAbs(
+makeApply(
+makeApply(
+makeRef(0),
+makeInt(104)),
+makeAbs(
+makeAbs(
+makeApply(
+makeApply(
+makeRef(0),
+makeInt(101)),
+makeAbs(
+makeAbs(
+makeApply(
+makeApply(
+makeRef(0),
+makeInt(108)),
+makeAbs(
+makeAbs(
+makeApply(
+makeApply(
+makeRef(0),
+makeInt(108)),
+makeAbs(
+makeAbs(
+makeApply(
+makeApply(
+makeRef(0),
+makeInt(111)),
+makeAbs(
+makeAbs(
+makeApply(
+makeApply(
+makeRef(0),
+makeInt(32)),
+makeAbs(
+makeAbs(
+makeApply(
+makeApply(
+makeRef(0),
+makeInt(119)),
+makeAbs(
+makeAbs(
+makeApply(
+makeApply(
+makeRef(0),
+makeInt(111)),
+makeAbs(
+makeAbs(
+makeApply(
+makeApply(
+makeRef(0),
+makeInt(114)),
+makeAbs(
+makeAbs(
+makeApply(
+makeApply(
+makeRef(0),
+makeInt(108)),
+makeAbs(
+makeAbs(
+makeApply(
+makeApply(
+makeRef(0),
+makeInt(100)),
+makeAbs(
+makeAbs(
+makeRef(1))))))))))))))))))))))))))))))))))))),
+makeAbs(
+makeApply(
+makeBuiltin("exit"),
+makeInt(0)))))),
+makeApply(
+makeRef(1),
+makeInt(1)))),
+makeApply(
+makeRef(1),
+makeInt(1)))),
+makeAbs(
+makeAbs(
+makeAbs(
+makeApply(
+makeApply(
+makeApply(
+makeRef(3),
+makeRef(2)),
+makeRef(1)),
+makeAbs(
+makeApply(
+makeApply(
+makeApply(
+makeApply(
+makeBuiltin("/="),
+makeRef(0)),
+makeInt(0)),
+makeApply(
+makeRef(1),
+makeRef(0))),
+makeApply(
+makeApply(
+makeApply(
+makeBuiltin("putCharF"),
+makeRef(3)),
+makeInt(10)),
+makeRef(1)))))))))),
+makeAbs(
+makeApply(
+makeRef(43),
+makeAbs(
+makeAbs(
+makeAbs(
+makeApply(
+makeApply(
+makeRef(1),
+makeApply(
+makeRef(0),
+makeInt(0))),
+makeAbs(
+makeAbs(
+makeApply(
+makeApply(
+makeApply(
+makeBuiltin("putCharF"),
+makeRef(5)),
+makeRef(1)),
+makeAbs(
+makeApply(
+makeApply(
+makeApply(
+makeApply(
+makeBuiltin("/="),
+makeRef(0)),
+makeInt(0)),
+makeApply(
+makeRef(3),
+makeRef(0))),
+makeApply(
+makeApply(
+makeRef(5),
+makeRef(1)),
+makeRef(3))))))))))))))),
+makeApply(
+makeRef(0),
+makeInt(0)))),
+makeAbs(
+makeAbs(
+makeApply(
+makeApply(
+makeApply(
+makeRef(4),
+makeRef(1)),
+makeApply(
+makeBuiltin("/="),
+makeInt(10))),
+makeAbs(
+makeApply(
+makeApply(
+makeApply(
+makeRef(6),
+makeRef(2)),
+makeApply(
+makeBuiltin("="),
+makeInt(10))),
+makeAbs(
+makeApply(
+makeAbs(
+makeApply(
+makeRef(3),
+makeRef(0))),
+makeApply(
+makeApply(
+makeRef(0),
+makeRef(1)),
+makeAbs(
+makeApply(
+makeApply(
+makeRef(26),
+makeRef(2)),
+makeApply(
+makeApply(
+makeRef(32),
+makeRef(0)),
+makeRef(31)))))))))))))),
+makeApply(
+makeRef(0),
+makeInt(0)))),
+makeAbs(
+makeAbs(
+makeApply(
+makeApply(
+makeApply(
+makeRef(2),
+makeRef(1)),
+makeRef(10)),
+makeAbs(
+makeApply(
+makeApply(
+makeApply(
+makeRef(4),
+makeRef(2)),
+makeApply(
+makeBuiltin("="),
+makeInt(45))),
+makeAbs(
+makeApply(
+makeAbs(
+makeApply(
+makeApply(
+makeApply(
+makeRef(5),
+makeRef(4)),
+makeRef(14)),
+makeAbs(
+makeApply(
+makeAbs(
+makeApply(
+makeRef(5),
+makeApply(
+makeApply(
+makeBuiltin("*"),
+makeRef(2)),
+makeRef(0)))),
+makeApply(
+makeRef(11),
+makeRef(0)))))),
+makeApply(
+makeApply(
+makeRef(0),
+makeInt(1)),
+makeApply(
+makeRef(39),
+makeApply(
+makeRef(15),
+makeInt(1))))))))))))),
+makeAbs(
+makeAbs(
+makeApply(
+makeRef(39),
+makeAbs(
+makeAbs(
+makeApply(
+makeApply(
+makeApply(
+makeRef(4),
+makeRef(3)),
+makeRef(2)),
+makeAbs(
+makeApply(
+makeApply(
+makeRef(0),
+makeApply(
+makeRef(1),
+makeRef(28))),
+makeAbs(
+makeApply(
+makeRef(3),
+makeAbs(
+makeApply(
+makeRef(3),
+makeApply(
+makeApply(
+makeRef(31),
+makeRef(1)),
+makeRef(0)))))))))))))))),
+makeAbs(
+makeAbs(
+makeAbs(
+makeApply(
+makeApply(
+makeBuiltin("peekCharF"),
+makeRef(2)),
+makeAbs(
+makeApply(
+makeApply(
+makeApply(
+makeRef(34),
+makeApply(
+makeRef(2),
+makeRef(0))),
+makeApply(
+makeApply(
+makeBuiltin("getCharF"),
+makeRef(3)),
+makeAbs(
+makeApply(
+makeRef(2),
+makeApply(
+makeRef(17),
+makeRef(1)))))),
+makeApply(
+makeRef(1),
+makeRef(17)))))))))),
+makeApply(
+makeApply(
+makeRef(19),
+makeAbs(
+makeAbs(
+makeApply(
+makeApply(
+makeApply(
+makeApply(
+makeRef(28),
+makeApply(
+makeRef(30),
+makeApply(
+makeRef(7),
+makeRef(1)))),
+makeApply(
+makeRef(30),
+makeApply(
+makeRef(22),
+makeRef(0)))),
+makeApply(
+makeApply(
+makeRef(24),
+makeRef(1)),
+makeRef(0))),
+makeRef(0))))),
+makeRef(21)))),
+makeAbs(
+makeAbs(
+makeApply(
+makeAbs(
+makeApply(
+makeApply(
+makeApply(
+makeRef(21),
+makeAbs(
+makeAbs(
+makeApply(
+makeApply(
+makeApply(
+makeApply(
+makeBuiltin("="),
+makeRef(1)),
+makeRef(4)),
+makeApply(
+makeApply(
+makeRef(26),
+makeRef(25)),
+makeRef(0))),
+makeApply(
+makeApply(
+makeRef(2),
+makeRef(1)),
+makeRef(0)))))),
+makeRef(23)),
+makeRef(1))),
+makeAbs(
+makeAbs(
+makeApply(
+makeApply(
+makeRef(0),
+makeAbs(
+makeAbs(
+makeApply(
+makeApply(
+makeRef(0),
+makeAbs(
+makeAbs(
+makeApply(
+makeApply(
+makeRef(0),
+makeRef(5)),
+makeAbs(
+makeAbs(
+makeRef(1))))))),
+makeAbs(
+makeAbs(
+makeRef(1))))))),
+makeAbs(
+makeAbs(
+makeApply(
+makeApply(
+makeRef(27),
+makeApply(
+makeApply(
+makeRef(27),
+makeRef(3)),
+makeRef(1))),
+makeRef(0)))))))))))),
+makeAbs(
+makeApply(
+makeAbs(
+makeApply(
+makeApply(
+makeApply(
+makeApply(
+makeBuiltin(">="),
+makeRef(1)),
+makeInt(0)),
+makeApply(
+makeRef(0),
+makeRef(1))),
+makeApply(
+makeApply(
+makeRef(22),
+makeInt(45)),
+makeApply(
+makeRef(0),
+makeApply(
+makeRef(8),
+makeRef(1)))))),
+makeApply(
+makeApply(
+makeRef(34),
+makeAbs(
+makeAbs(
+makeAbs(
+makeApply(
+makeApply(
+makeApply(
+makeApply(
+makeBuiltin("<="),
+makeRef(0)),
+makeInt(9)),
+makeApply(
+makeApply(
+makeRef(24),
+makeApply(
+makeRef(5),
+makeRef(0))),
+makeRef(1))),
+makeApply(
+makeApply(
+makeRef(2),
+makeApply(
+makeApply(
+makeRef(24),
+makeApply(
+makeRef(5),
+makeApply(
+makeApply(
+makeBuiltin("%"),
+makeRef(0)),
+makeInt(10)))),
+makeRef(1))),
+makeApply(
+makeApply(
+makeBuiltin("/"),
+makeRef(0)),
+makeInt(10)))))))),
+makeAbs(
+makeAbs(
+makeRef(1)))))))),
+makeAbs(
+makeApply(
+makeAbs(
+makeApply(
+makeApply(
+makeRef(1),
+makeInt(0)),
+makeAbs(
+makeAbs(
+makeApply(
+makeApply(
+makeApply(
+makeApply(
+makeBuiltin("="),
+makeRef(1)),
+makeInt(45)),
+makeApply(
+makeRef(9),
+makeApply(
+makeRef(2),
+makeRef(0)))),
+makeApply(
+makeRef(2),
+makeRef(3))))))),
+makeApply(
+makeApply(
+makeRef(16),
+makeAbs(
+makeAbs(
+makeApply(
+makeApply(
+makeBuiltin("+"),
+makeApply(
+makeApply(
+makeBuiltin("*"),
+makeRef(1)),
+makeInt(10))),
+makeApply(
+makeRef(4),
+makeRef(0)))))),
+makeInt(0)))))),
+makeApply(
+makeBuiltin("+"),
+makeInt(48)))),
+makeAbs(
+makeApply(
+makeApply(
+makeBuiltin("-"),
+makeRef(0)),
+makeInt(48))))),
+makeAbs(
+makeApply(
+makeApply(
+makeRef(21),
+makeApply(
+makeApply(
+makeBuiltin("="),
+makeRef(0)),
+makeInt(32))),
+makeApply(
+makeApply(
+makeRef(21),
+makeApply(
+makeApply(
+makeBuiltin("="),
+makeRef(0)),
+makeInt(9))),
+makeApply(
+makeApply(
+makeBuiltin("="),
+makeRef(0)),
+makeInt(10))))))),
+makeAbs(
+makeApply(
+makeApply(
+makeRef(21),
+makeApply(
+makeApply(
+makeBuiltin(">="),
+makeRef(0)),
+makeInt(48))),
+makeApply(
+makeApply(
+makeBuiltin("<="),
+makeRef(0)),
+makeInt(57)))))),
+makeApply(
+makeRef(27),
+makeAbs(
+makeAbs(
+makeApply(
+makeApply(
+makeRef(0),
+makeBuiltin("makeIntList")),
+makeAbs(
+makeAbs(
+makeApply(
+makeApply(
+makeRef(3),
+makeRef(0)),
+makeRef(1)))))))))),
+makeApply(
+makeBuiltin("-"),
+makeInt(0)))),
+makeAbs(
+makeAbs(
+makeApply(
+makeRef(0),
+makeRef(1)))))),
+makeRef(25))),
+makeAbs(
+makeAbs(
+makeAbs(
+makeApply(
+makeRef(0),
+makeRef(2))))))),
+makeRef(11))),
+makeAbs(
+makeApply(
+makeApply(
+makeRef(6),
+makeAbs(
+makeAbs(
+makeApply(
+makeApply(
+makeRef(11),
+makeApply(
+makeRef(2),
+makeRef(1))),
+makeRef(0))))),
+makeRef(8))))),
+makeApply(
+makeApply(
+makeRef(3),
+makeBuiltin("+")),
+makeInt(0)))),
+makeAbs(
+makeApply(
+makeApply(
+makeApply(
+makeRef(2),
+makeAbs(
+makeAbs(
+makeApply(
+makeApply(
+makeRef(3),
+makeRef(1)),
+makeApply(
+makeApply(
+makeRef(3),
+makeRef(2)),
+makeRef(0)))))),
+makeRef(21)),
+makeRef(6))))),
+makeAbs(
+makeAbs(
+makeApply(
+makeApply(
+makeApply(
+makeRef(4),
+makeAbs(
+makeAbs(
+makeApply(
+makeApply(
+makeRef(9),
+makeRef(1)),
+makeRef(0))))),
+makeRef(0)),
+makeRef(1)))))),
+makeAbs(
+makeAbs(
+makeAbs(
+makeApply(
+makeRef(20),
+makeAbs(
+makeAbs(
+makeApply(
+makeApply(
+makeRef(0),
+makeRef(2)),
+makeAbs(
+makeAbs(
+makeApply(
+makeApply(
+makeRef(0),
+makeApply(
+makeRef(5),
+makeRef(1))),
+makeAbs(
+makeAbs(
+makeApply(
+makeApply(
+makeRef(8),
+makeRef(3)),
+makeApply(
+makeRef(5),
+makeRef(2))))))))))))))))),
+makeAbs(
+makeApply(
+makeRef(17),
+makeAbs(
+makeAbs(
+makeAbs(
+makeApply(
+makeApply(
+makeRef(0),
+makeRef(1)),
+makeAbs(
+makeAbs(
+makeApply(
+makeApply(
+makeRef(4),
+makeApply(
+makeApply(
+makeRef(5),
+makeRef(3)),
+makeRef(1))),
+makeRef(0)))))))))))),
+makeAbs(
+makeAbs(
+makeApply(
+makeRef(17),
+makeAbs(
+makeAbs(
+makeApply(
+makeApply(
+makeRef(0),
+makeRef(2)),
+makeAbs(
+makeAbs(
+makeApply(
+makeApply(
+makeRef(5),
+makeRef(1)),
+makeApply(
+makeRef(3),
+makeRef(0))))))))))))),
+makeAbs(
+makeApply(
+makeApply(
+makeRef(0),
+makeRef(11)),
+makeAbs(
+makeAbs(
+makeRef(12))))))),
+makeRef(2))),
+makeAbs(
+makeAbs(
+makeAbs(
+makeAbs(
+makeApply(
+makeApply(
+makeRef(0),
+makeRef(3)),
+makeRef(2)))))))),
+makeRef(6))),
+makeRef(6))),
+makeAbs(
+makeAbs(
+makeAbs(
+makeApply(
+makeApply(
+makeRef(0),
+makeRef(2)),
+makeRef(1))))))),
+makeAbs(
+makeAbs(
+makeApply(
+makeApply(
+makeRef(1),
+makeRef(6)),
+makeRef(0)))))),
+makeAbs(
+makeAbs(
+makeApply(
+makeApply(
+makeRef(1),
+makeRef(0)),
+makeRef(4)))))),
+makeAbs(
+makeApply(
+makeApply(
+makeRef(0),
+makeRef(2)),
+makeRef(3))))),
+makeRef(6))),
+makeAbs(
+makeAbs(
+makeRef(0))))),
+makeAbs(
+makeAbs(
+makeRef(1))))),
+makeRef(4))),
+makeApply(
+makeRef(1),
+makeRef(2)))),
+makeRef(1))),
+makeAbs(
+makeApply(
+makeAbs(
+makeApply(
+makeRef(1),
+makeApply(
+makeRef(0),
+makeRef(0)))),
+makeAbs(
+makeApply(
+makeRef(1),
+makeApply(
+makeRef(0),
+makeRef(0)))))))),
+makeAbs(
+makeRef(0)))),
+makeAbs(
+makeAbs(
+makeRef(1))))),
+makeAbs(
+makeAbs(
+makeAbs(
+makeApply(
+makeApply(
+makeRef(2),
+makeRef(0)),
+makeApply(
+makeRef(1),
+makeRef(0))))))));
+
+    printf("\nhere\n");
+    printf("%d",resultcode);
+
 }
 
