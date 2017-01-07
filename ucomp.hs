@@ -5,6 +5,7 @@ import System.Process
 import UModuleLoader
 import ULambdaExpression
 import UCompile
+import UOptimize
 import qualified Data.Set as Set
 
 main = do
@@ -25,14 +26,17 @@ main = do
 					| (not (Set.member "main.main" loaded)) -> putStrLn "main.main not defined"
 					| outputc -> do
 						fout <- openFile (basename++".c") WriteMode
-						hPutStrLn fout$compileToC$assembleChainLExpr curchain (LRef "main.main")
+						hPutStrLn fout$compileToC$optchain
 						hClose fout
 					| otherwise -> do
 						let llname = (basename ++ ".ll")
 						let sname = (basename ++ ".s")
 						fout <- openFile llname WriteMode
-						hPutStrLn fout$compileToLLVM$assembleChainLExpr curchain (LRef "main.main")
+						hPutStrLn fout$compileToLLVM$optchain
 						hClose fout
 						rawSystem "llc" [llname,"-o",sname,"-O2"]
 						rawSystem "clang" ["simpleruntime.ll",sname,"-o",basename,"-O2","-lm"]
 						return ()
+					where
+						rawchain = assembleChainLExpr curchain (LRef "main.main")
+						optchain = optimizeLExpr$rawchain
