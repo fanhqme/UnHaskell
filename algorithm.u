@@ -1,0 +1,21 @@
+(def sort (\cmp (recur (\f l (let
+	(split2 (recur (\f (\l
+		(l (pair empty empty) (\x xs
+			((f xs) (\l1 l2
+				(pair (cons x l2) l1)
+			)))
+		)
+	))))
+	(merge (recur (\f (\l1 l2
+		(l1 l2 (\h1 r1 (l2 l1 (\h2 r2
+			((cmp h1 h2)
+				(cons h1 (f r1 l2))
+				(cons h2 (f l1 r2))
+			)
+		))))
+	))))
+	(sl (split2 l))
+	((l True (\_ r (r True (\_ _ False)))) l
+		(merge (f (fst sl)) (f (snd sl)))
+	)
+)))))

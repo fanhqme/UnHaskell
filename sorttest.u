@@ -1,0 +1,8 @@
+(import* io)
+(import* algorithm)
+(import* str)
+(run
+	(lines readLines)
+	(_ (putStr (concat (sort cmpStr lines))))
+	(exit 0)
+)

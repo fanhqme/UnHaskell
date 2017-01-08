@@ -3,7 +3,7 @@
 (let readIfF (\handle condition
 	(do
 		(c (peekCharF handle))
-		(if (condition c)
+		(if (and (/= c -1) (condition c))
 			(run
 				(_ (getCharF handle))  ; must be c
 				(return (just c))
@@ -37,15 +37,28 @@
 	)
 ))
 (def readInt (readIntF 0))
-(def readLineF (\handle
+(def readLineF (\handle   ; empty line means EOF
 	(do
 		(body (readWhileF handle (/= '\n')))
 		(trail (readIfF handle(= '\n')))
-		(let body_t (trail body (\x (++ body (cons x empty)))))
+		(let body_t (trail body (\x (++ body (list x)))))
 		(return body_t)
 	)
 ))
 (def readLine (readLineF 0))
+(def readLinesF (\handle (recur (\f
+	(do
+		(line (readLineF handle))
+		((null line)
+			(return empty)
+			(run
+				(remain f)
+				(return (cons line remain))
+			)
+		)
+	)
+))))
+(def readLines (readLinesF 0))
 
 ; getArg
 (let getArgStr (recur (\f (do

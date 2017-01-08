@@ -2,11 +2,15 @@
 (def S (\x y a ((x a) (y a))))
 (def K (\x y x))
 
+; functional tools
 (def id (\x x))
 (def recur (\f ((\x (f (x x))) (\x (f (x x))))))
 (def print id)
 (def die (recur id))  ; this makes the program runs forever
 (def const K)
+(def . (\f g x (f (g x))))
+(def apply id)
+(def feed (\x y (y x)))
 
 ; the Bool protocol:   (b  true_value  false_value)
 (def True (\x y x))
@@ -18,12 +22,12 @@
 
 ; the Pair protocol:   (p (\first second pair_value))
 (def pair (\x y f (f x y)))
-(def fst True)
-(def snd False)
+(def fst (feed True))
+(def snd (feed False))
 
 ; the List protocol:   (l null_value (\head tail list_value))
 (def cons (\x xs f g (g x xs)))
-(def empty fst)
+(def empty True)
 (def null (\x (x True (\_ _ False))))
 (def foldr (\f x0 (recur (\g (\l
 	(l x0 (\x xs
@@ -44,16 +48,29 @@
 ))
 (def ++ (\a b (foldr (\x y (cons x y)) b a)))
 (def join (\sep (foldr1 (\x y (++ x (++ sep y))) id empty)))
+(def concat (foldr ++ empty))
 (def sum (foldl + 0))
 (def map (\f (foldr (\h r (cons (f h) r)) empty)))
+(def cmpList (\cmp (recur (\f (\l1 l2
+	(l1 True (\h1 r1 (l2 False (\h2 r2
+		((cmp h1 h2) True
+			((cmp h2 h1) False
+				(f r1 r2)
+			)
+		)
+	))))
+)))))
+(def dropWhile (\cond (recur (\f (\l
+	(l l (\h r
+		((cond h) (f r) l)
+	))
+)))))
+
 
 ; the Maybe protocol:  (m nothing_value (\v just_value))
-(def nothing fst)
+(def nothing True)
 (def just (\v (\f g (g v))))
 
-; functional utils
-(def apply id)
-(def feed (\x y (y x)))
 
 ; numeric utils
 (def neg (- 0))
@@ -67,3 +84,5 @@
 ))))
 (def open (\f (openCmd (fileName f))))
 (def system (\f (systemCmd (fileName f))))
+(def ReadMode 0)
+(def WriteMode 1)
