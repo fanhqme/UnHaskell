@@ -34,8 +34,8 @@ compileToC l = header++compileToCS l (Map.fromList []) 0 footer where
 compileToLLVM :: LExpr -> [Char]
 compileToLLVM l = header.strblock.main_head.funcbody.footer $ "" where
 	header = showString "%struct.VExp = type opaque\n"
-	main_head = showString "define i32 @main() #0 {\n  %1 = alloca i32, align 4\n  store i32 0, i32* %1\n"
-	footer = showString "declare i32 @executeVExp(%struct.VExp*) #1\n\
+	main_head = showString "define i32 @main(i32 %argc, i8** %argv) #0 {\n  %1 = alloca i32, align 4\n  store i32 0, i32* %1\n"
+	footer = showString "declare i32 @executeVExp(%struct.VExp*, i32, i8**)\n\
 		\declare %struct.VExp* @makeApply(%struct.VExp*, %struct.VExp*)\n\
 		\declare %struct.VExp* @makeBuiltin(i8*) #1\n\
 		\declare %struct.VExp* @makeAbs(%struct.VExp*) #1\n\
@@ -47,7 +47,7 @@ compileToLLVM l = header.strblock.main_head.funcbody.footer $ "" where
 	(expid,final_str_defs,mainblock,terminate_id) = constructL l 0 (Map.fromList []) 2 (Map.fromList [])
 	strblock = foldr (.) id (map (showString.strLine) (Map.toList final_str_defs))
 	strLine (s,s_id) = "@.str"++(show s_id)++" = private unnamed_addr constant ["++(show.(+1).length$s)++" x i8] c\""++s++"\\00\", align 1\n"
-	funcbody = mainblock . showString ("  %"++(show terminate_id)++" = call i32 @executeVExp(%struct.VExp* %"++(show expid)++")\n  ret i32 %"++(show terminate_id)++"\n}\n")
+	funcbody = mainblock . showString ("  %"++(show terminate_id)++" = call i32 @executeVExp(%struct.VExp* %"++(show expid)++", i32 %argc, i8** %argv)\n  ret i32 %"++(show terminate_id)++"\n}\n")
 	constructL :: LExpr -> Int -> Map.Map [Char] Int -> Int -> Map.Map [Char] Int -> (Int,Map.Map [Char] Int,ShowS,Int)
 	constructL l curlevel localdefs cur_id strdefs = case l of
 		LInt v -> (cur_id,strdefs,showString ("  %"++(show cur_id)++" = call %struct.VExp* @makeInt(i32 "++(show v)++")\n"),cur_id+1)
