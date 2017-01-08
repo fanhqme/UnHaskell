@@ -1,6 +1,12 @@
 module UCompile where
+import System.IO
+import System.Process
+import System.Exit
 import ULambdaExpression
+import UModuleLoader
+import UOptimize
 import qualified Data.Map as Map
+import qualified Data.Set as Set
 
 compileToC :: LExpr -> [Char]
 compileToC l = header++compileToCS l (Map.fromList []) 0 footer where
@@ -59,3 +65,38 @@ compileToLLVM l = header.strblock.main_head.funcbody.footer $ "" where
 			(l1_id,strdefs_1,s1,id_1) = constructL l1 curlevel localdefs cur_id strdefs
 			(l2_id,strdefs_2,s2,id_2) = constructL l2 curlevel localdefs id_1 strdefs_1
 			in (id_2,strdefs_2,s1 . s2 . showString ("  %"++(show id_2)++" = call %struct.VExp* @makeApply(%struct.VExp* %"++(show l1_id)++", %struct.VExp* %"++(show l2_id)++")\n"),id_2+1)
+
+runCompile :: [Char] -> [Char] -> Bool-> [Char] -> IO ()
+runCompile basename ofname' outputc target = do
+	let ofname
+		| not$null ofname' = ofname'
+		| outputc = basename++".c"
+		| otherwise = basename
+	let ifname = basename ++ ".u"
+	loadc <- loadMainModule ifname defaultLoadContext
+	case loadc of
+		MFail msg modname pos -> putStrLn ("error loading "++modname++" at "++(show pos)++": "++msg)
+		MSucc (MLoadContext loaded curchain)
+			| (not (Set.member "main.main" loaded)) -> putStrLn "main.main not defined"
+			| outputc -> do
+				fout <- openFile ofname WriteMode
+				hPutStrLn fout$compileToC$optchain
+				hClose fout
+			| otherwise -> do
+				let llname = (basename ++ ".ll")
+				let sname = (basename ++ ".s")
+				let rtname = (basename ++ ".rt.s")
+				let archparam = if null target then [] else ["-march",target]
+				let targetparam = if null target then [] else ["-target",target]
+				fout <- openFile llname WriteMode
+				hPutStrLn fout$compileToLLVM$optchain
+				hClose fout
+				o1 <- rawSystem "llc" (["simpleruntime.ll","-o",rtname,"-O2"]++archparam)
+				if o1/=ExitSuccess then return o1 else do
+					o2 <- rawSystem "llc" ([llname,"-o",sname,"-O2"]++archparam)
+					if o2/=ExitSuccess then return o2 else do
+						rawSystem "clang" ([rtname,sname,"-o",ofname,"-O2","-lm"]++targetparam)
+				return ()
+			where
+				rawchain = assembleChainLExpr curchain (LRef "main.main")
+				optchain = optimizeLExpr$rawchain
