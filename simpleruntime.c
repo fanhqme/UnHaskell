@@ -138,7 +138,6 @@ typedef struct ValueStack{
 }ValueStack;
 struct VContext{
     Value* val;
-    //struct VContext * next;
     VContext * prev;
     int refcount;
 };
@@ -1009,7 +1008,7 @@ VExp * makeBuiltin(const char* func_name){
     return NULL;
 }
 
-int executeVExp(VExp * exp){
+int executeVExp(VExp * exp,int argc,char ** argv){
     Value * v = newValue();
     VContext * context = newVContext();
     Continuation * cont = newContinuation();
@@ -1019,11 +1018,10 @@ int executeVExp(VExp * exp){
     v->r_exp = NULL;
     v->r_context = NULL;
     v->r_cont = cont;
-    return executeValue(v, 0, NULL);
+    return executeValue(v,argc,argv);
 }
 
-int main()
-{
+/*{
     int resultcode =executeVExp(makeApply(
 makeAbs(
 makeRef(0)),
@@ -1044,5 +1042,5 @@ makeInt(0))))));
     //printf("\nhere\n");
     //printf("%d",resultcode);
 
-}
+}*/
 

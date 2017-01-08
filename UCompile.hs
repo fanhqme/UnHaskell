@@ -11,10 +11,10 @@ compileToC l = header++compileToCS l (Map.fromList []) 0 footer where
 		\VExp * makeAbs(VExp* abs_val);\n\
 		\VExp * makeRef(int ref_val);\n\
 		\VExp * makeApply(VExp * f,VExp * x);\n\
-		\int executeVExp(VExp * exp);\n\
-		\int main(){\n\
+		\int executeVExp(VExp * exp,int argc,char ** argv);\n\
+		\int main(int argc,char ** argv){\n\
 		\return executeVExp("
-	footer=");\n}"
+	footer=",argc,argv);\n}"
 	compileToCS :: LExpr -> Map.Map [Char] Int -> Int -> ShowS
 	compileToCS l names curlevel = case l of
 		LInt v -> showString ("makeInt("++(show v)++")")
