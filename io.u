@@ -59,6 +59,8 @@
 	)
 ))))
 (def readLines (readLinesF 0))
+(def readContentF (\handle (readWhileF handle (const True))))
+(def readContent (readContentF 0))
 
 ; getArg
 (let getArgStr (recur (\f (do

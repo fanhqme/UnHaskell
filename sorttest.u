@@ -2,7 +2,8 @@
 (import* algorithm)
 (import* str)
 (run
-	(lines readLines)
-	(_ (putStr (concat (sort cmpStr lines))))
+	(content readContent)
+	(let lines (splitStr '\n' content))
+	(_ (putStrLn (join "\n" (sort cmpStr lines))))
 	(exit 0)
 )
