@@ -381,8 +381,8 @@ Value * releaseValue(Value * p){
             } else if (p->type==VALUE_EXCEPTION){
 
             }
+            allocateValue(p);
         }
-        allocateValue(p);
     }
     return NULL;
 }
@@ -752,7 +752,7 @@ Value * resolveValue(Value * v){ // v : stolen    returns: stolen
 				v->r_exp=nexp;
 				v->r_context=context;
 				v->r_cont=ncont;
-				//releaseContinuationSingle(cont);
+				releaseContinuationSingle(cont);
 			}
 		}// else   other expression types
 	}
@@ -932,8 +932,8 @@ int executeValue(Value * v,int argc,char ** args){
 			ncont->cont=NULL;
 			Value * nv=newValue();
 			nv->type=VALUE_RUNNING;
-			nv->r_exp=sys_cont->exp;
-			nv->r_context=sys_cont->context;
+			nv->r_exp=retainVExp(sys_cont->exp);
+			nv->r_context=retainVContext(sys_cont->context);
 			nv->r_cont=ncont;
 			v=nv;
 		}
@@ -1062,26 +1062,14 @@ int executeVExp(VExp * exp,int argc,char ** argv){
     return executeValue(v,argc,argv);
 }
 
-/*{
-    int resultcode =executeVExp(makeApply(
+/*int main(int argc,char ** argv){
+return executeVExp(makeApply(
 makeAbs(
 makeRef(0)),
 makeApply(
 makeApply(
-makeBuiltin("systemCmd"),
-makeApply(
-makeApply(
-makeBuiltin("makeIntList"),
-makeInt(115)),
-makeInt(108))),
-makeAbs(
-makeApply(
-makeBuiltin("exit"),
-makeInt(0))))));
-
-
-    //printf("\nhere\n");
-    //printf("%d",resultcode);
-
+makeBuiltin("putChar"),
+makeInt(67)),
+makeBuiltin("exit"))),argc,argv);
 }*/
 
