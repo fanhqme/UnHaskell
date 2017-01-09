@@ -5,7 +5,7 @@
 #include "number.c"
 #include "intlist.c"
 
-typedef struct VContext VContext; // map<int,LazyValue*>
+typedef struct VContext VContext; // map<int,Value*>
 typedef struct Continuation Continuation;
 typedef struct Value Value;
 typedef enum{
@@ -128,13 +128,17 @@ struct Continuation{
 		struct{ //CONT_APPLY
 			Value * ap_x; // unresolved
 		};
-		//
 	};
 	Continuation * cont;
 };
 typedef struct ValueStack{
-	Value * val;
-	struct ValueStack * next;
+	union{
+		struct{
+			Value * val;
+			struct ValueStack * next;
+		};
+		struct ValueStack * pool_next;
+	};
 }ValueStack;
 struct VContext{
     Value* val;
@@ -168,21 +172,21 @@ VContext * allocateVContext(VContext * p){
 	}
 }
 
-VContext * newVContext(){
+VContext * newVContext(){  // returns new
     VContext * p = allocateVContext(NULL);
     p->prev = NULL;
     p->val = NULL;
     return p;
 }
 
-VContext * retainVContext(VContext * p){
+VContext * retainVContext(VContext * p){ // p: stolen    returns: new
     if (p){
         p->refcount++;
     }
     return p;
 }
 
-VContext * releaseVContext(VContext * p){
+VContext * releaseVContext(VContext * p){ // p: consumed
 	if (p){
 		p->refcount--;
 		if (p->refcount==0){
@@ -195,22 +199,17 @@ VContext * releaseVContext(VContext * p){
 	return NULL;
 }
 
-Value * lookUpRef(int ref,VContext * context){
+Value * lookUpRef(int ref,VContext * context){  // context: stolen    returns: stolen
     for (int i=0;i<ref;++i){
         context = context->prev;
     }
     return context->val;
 }
 
-VContext * insertRef(Value * v,VContext * context){
+VContext * insertRef(Value * v,VContext * context){ // v: consumed   context: consumed   returns: new
     VContext * ncontext=newVContext();
     ncontext->val=v;
-    ncontext->prev=retainVContext(context);
-    VContext * p=context;
-    /*while (p){
-        retainVContext(p);
-        p = p->prev;
-    }*/
+    ncontext->prev=context;
     return ncontext;
 }
 
@@ -236,27 +235,6 @@ Continuation * allocateContinuation(Continuation * p){
 	}
 }
 
-Continuation * newContinuation(){
-    Continuation * p = allocateContinuation(NULL);
-    p->cont=NULL;
-    return p;
-}
-
-Continuation * releaseContinuation(Continuation * p){
-    if (p){
-        if (p->type==CONT_EVAL){
-            releaseVExp(p->eval_exp);
-            releaseVContext(p->eval_context);
-        }else if (p->type==CONT_APPLY){
-            releaseValue(p->ap_x);
-        }
-        if (p->cont){
-            releaseContinuation(p->cont);
-        }
-        allocateContinuation(p);
-    }
-    return NULL;
-}
 
 Continuation * releaseContinuationSingle(Continuation * p){
     if (p){
@@ -271,19 +249,112 @@ Continuation * releaseContinuationSingle(Continuation * p){
     return NULL;
 }
 
+Continuation * releaseContinuation(Continuation * p){
+	while (p){
+		Continuation * cont = p->cont;
+		releaseContinuationSingle(p);
+		p=cont;
+    }
+    return NULL;
+}
+
 //===========================================================
 
-void displayExp(VExp * e){
+const char * funcNames(FuncType ft){
+	static const char * names[]={
+		"+",
+		"-",
+		"*",
+		"/",
+		"%",
+		">",
+		"<",
+		"<=",
+		">=",
+		"==",
+		"/=",
+		"",
+		"toFloat",
+		"toInt",
+	};
+	return names[ft];
+}
+const char * syscallNames(SyscallType st){
+	static const char * names[]={
+		"exit",
+		"openCmd",
+		"close",
+		"getCharF",
+		"putCharF",
+		"peekCharF",
+		"getArg",
+		"systemCmd"
+	};
+	return names[st];
+}
+
+void displayNumber(Number a){
+	if (a.type==NUM_INT){
+		printf("%d",a.int_val);
+	}else{
+		printf("%f",a.double_val);
+	}
+}
+
+void displayExpRecursive(VExp * e,int level){ // e : stolen
     if (e->type==EXP_NUM) {
-        Number num_val = e->num_val;
-        if (num_val.type==NUM_INT){
-            printf("%d\n",num_val.int_val);
-        }else{
-            printf("%f\n",num_val.double_val);
-        }
-    }else {
-        printf("Not a number\n");
-    }
+		displayNumber(e->num_val);
+    }else if (e->type==EXP_ABS){
+		printf("(\\v%d ",level);
+		displayExpRecursive(e->abs_val,level+1);
+		printf(")");
+	}else if (e->type==EXP_REF){
+		printf("v%d",level-1-e->ref_val);
+	}else if (e->type==EXP_APPLY){
+		printf("(");
+		displayExpRecursive(e->ap_f,level);
+		printf(" ");
+		displayExpRecursive(e->ap_f,level);
+		printf(")");
+	}else if (e->type==EXP_NUMFUNC){
+		printf("%s",funcNames(e->func_type));
+	}else if (e->type==EXP_NUMFUNC1){
+		printf("(%s ",funcNames(e->func1_type));
+		displayNumber(e->func1_opa);
+		printf(")");
+	}else if (e->type==EXP_INTLIST){
+		printf("(makeIntList");
+		for (IntList * p=e->intlist_val;p;p=p->next){
+			printf(" %d",p->val);
+		}
+		printf(")");
+	}else if (e->type==EXP_SYSCALL){
+		printf("(%s",syscallNames(e->sys_type));
+		int required=syscall_arginfo[e->sys_type][0];
+		if (e->sys_nbind>=1 && required>1){
+			int atype=syscall_arginfo[e->sys_type][1];
+			if (atype==0){
+				printf(" %d",e->sys_arg1.int_val);
+			}else{
+				printf(" (makeIntList");
+				for (IntList * p=e->sys_arg1.intlist_val;p;p=p->next){
+					printf(" %d",p->val);
+				}
+				printf(")");
+			}
+		}
+		if (e->sys_nbind>=2 && required>2){
+			printf(" %d",e->sys_arg2);
+		}
+		if (e->sys_nbind>=1 && syscall_arginfo[e->sys_type][e->sys_nbind]==2){
+			printf(" ...");
+		}
+		printf(")");
+	}
+}
+
+void displayExp(VExp * e){  // e: stolen
+	displayExpRecursive(e,0);
 }
 
 VExp * allocateVExp(VExp * p){
@@ -361,13 +432,27 @@ Value * allocateValue(Value * p){
 	}
 }
 
-Value* newValue(){
+//Value* newValue(){  // returns: new
+    //Value * p = allocateValue(NULL);
+    //return p;
+//}
+Value * newResolvedValue(VExp * exp, VContext * context){ // exp : consumed  context : consumed
     Value * p = allocateValue(NULL);
-    p->type = VALUE_RUNNING;
-    return p;
+	p->type=VALUE_RESOLVED;
+	p->exp=exp;
+	p->context=context;
+	return p;
+}
+Value * newRunningValue(VExp * r_exp,VContext * r_context){ // r_exp : consumed    r_context : consumed
+    Value * p = allocateValue(NULL);
+	p->type=VALUE_RUNNING;
+	p->r_exp=r_exp;
+	p->r_context=r_context;
+	p->r_cont=NULL;
+	return p;
 }
 
-Value * releaseValue(Value * p){
+Value * releaseValue(Value * p){ // p: consumed
     if (p){
         p->refcount--;
         if (p->refcount==0){
@@ -387,20 +472,88 @@ Value * releaseValue(Value * p){
     return NULL;
 }
 
-Value * retainValue(Value * p){
+Value * retainValue(Value * p){ // p: consumed   returns: new
     if (p){
         p->refcount++;
     }
     return p;
 }
 
+//modifiers for Running Value
+void pushEvalContinuation(Value * v,VExp * exp,VContext * context){ // v : stolen  exp : consumed   context : consumed
+    Continuation * p = allocateContinuation(NULL);
+	p->type=CONT_EVAL;
+	p->eval_exp=exp;
+	p->eval_context=context;
+	p->cont=v->r_cont;
+	v->r_cont=p;
+}
+void pushApplyContinuation(Value * v,Value * ap_x){ // v: stolen    ap_x : consumed
+    Continuation * p = allocateContinuation(NULL);
+	p->type=CONT_APPLY;
+	p->ap_x=ap_x;
+	p->cont=v->r_cont;
+	v->r_cont=p;
+}
+void popContinuation(Value * v){ // v : stolen
+	Continuation * r=v->r_cont->cont;
+	releaseContinuationSingle(v->r_cont);
+	v->r_cont=r;
+}
+void clearNullContinuation(Value * v){ // v : stolen
+	VExp * exp=v->r_exp;
+	VContext * context=v->r_context;
+	// v->r_cont must be NULL
+	v->type=VALUE_RESOLVED;
+	v->exp=exp;
+	v->context=context;
+}
+void setRunningValue(Value * v,VExp * exp,VContext * context){ // v : stolen   exp : consumed  context : consumed
+	releaseVExp(v->r_exp);
+	v->r_exp=exp;
+	releaseVContext(v->r_context);
+	v->r_context=context;
+}
+void setExceptionValue(Value * v,const char * message){ // v : stolen
+	v->r_exp=releaseVExp(v->r_exp);
+	v->r_context=releaseVContext(v->r_context);
+	v->r_cont=releaseContinuation(v->r_cont);
+	v->type=VALUE_EXCEPTION;
+	v->message=message;
+}
+
 //===========================================================
 
-ValueStack * newValueStack(){
-    ValueStack * p = malloc(sizeof(ValueStack));
-    p->next = NULL;
-    p->val = NULL;
+ValueStack * allocateValueStack(ValueStack * p){
+	static ValueStack * pool=NULL;
+	if (!p){
+		if (!pool){
+			ValueStack * p=(ValueStack *)malloc(sizeof(ValueStack)*1000);
+			for (int i=0;i<1000;i++){
+				p[i].pool_next=pool;
+				pool=p+i;
+			}
+		}
+		p=pool;
+		pool=pool->pool_next;
+		return p;
+	}else{
+		p->pool_next=pool;
+		pool=p;
+		return NULL;
+	}
+}
+
+ValueStack * pushValueStack(Value * v,ValueStack * r){ // v : stolen
+    ValueStack * p = allocateValueStack(NULL);
+	p->next=r;
+	p->val=v;
     return p;
+}
+ValueStack * popValueStack(ValueStack * p){
+	ValueStack * r=p->next;
+	allocateValueStack(p);
+	return r;
 }
 
 VExp * newVExpNum(Number num_val){ //returns: new
@@ -522,87 +675,76 @@ Value * resolveValue(Value * v){ // v : stolen    returns: stolen
 	//v->type must be VALUE_RUNNING
 	Continuation * cont=v->r_cont;
 	if (!cont){
-		VExp * exp=v->r_exp;
-		VContext * context=v->r_context;
-		releaseContinuation(v->r_cont);
-		v->type=VALUE_RESOLVED;
-		v->exp=exp;
-		v->context=context;
+		clearNullContinuation(v);
 	}else if (cont->type==CONT_EVAL){
-		VExp * exp=cont->eval_exp;
-		VContext * context=cont->eval_context;
+		//v->r_exp and v->r_context should be NULL
+		VExp * exp=cont->eval_exp; // stolen
+		VContext * context=cont->eval_context; //stolen
 		if (exp->type<EXP_WHNF){
-			Continuation * ncont=cont->cont;
-			v->type=VALUE_RUNNING;
-			v->r_exp=retainVExp(exp);
-			v->r_context=retainVContext(context);
-			v->r_cont=ncont;
-			releaseContinuationSingle(cont);
+			setRunningValue(v,
+				retainVExp(exp),
+				retainVContext(context)
+			);
+			popContinuation(v);
 		}if (exp->type==EXP_REF){
 			int ref=exp->ref_val;
-			Value * ref_val=lookUpRef(ref,context);
+			Value * ref_val=lookUpRef(ref,context); // stolen
 			if (ref_val->type==VALUE_RESOLVED){
-				v->r_exp=retainVExp(ref_val->exp);
-				v->r_context=retainVContext(ref_val->context);
-				v->r_cont=cont->cont;
-				releaseContinuationSingle(cont);
+				setRunningValue(v,
+					retainVExp(ref_val->exp),
+					retainVContext(ref_val->context)
+				);
+				popContinuation(v);
 			}else if(ref_val->type==VALUE_EXCEPTION){
-				v->type=VALUE_EXCEPTION;
-				v->message=ref_val->message;
+				//In place modify. Need to handle v->r_exp, v->r_context, v->r_cont
+				setExceptionValue(v,ref_val->message);
 			}else{
 				return ref_val;
 			}
 		}else if (exp->type==EXP_APPLY){
-			VExp * f=exp->ap_f;
-			VExp * x=exp->ap_x;
-			Value * nvx=newValue();
-			nvx->type=VALUE_RUNNING;
-			nvx->r_exp=NULL;
-			nvx->r_context=NULL;
-			nvx->r_cont=newContinuation();
-			nvx->r_cont->type=CONT_EVAL;
-			nvx->r_cont->eval_exp=retainVExp(x);
-			nvx->r_cont->eval_context=retainVContext(context);
-			nvx->r_cont->cont=NULL;
-			Continuation * ncont=newContinuation();
-			ncont->type=CONT_APPLY;
-			ncont->cont=cont->cont;
-			ncont->ap_x=nvx;
-			Continuation * ncont2=newContinuation();
-			ncont2->type=CONT_EVAL;
-			ncont2->eval_exp=retainVExp(f);
-			ncont2->eval_context=retainVContext(context);
-			ncont2->cont=ncont;
-			v->r_exp=releaseVExp(v->r_exp);
-			v->r_context=releaseVContext(v->r_context);
-			releaseContinuationSingle(cont);
-			v->r_cont=ncont2;
+			//In place modify. Need to handle v->r_exp, v->r_context, v->r_cont
+			VExp * f=retainVExp(exp->ap_f); //new
+			VExp * x=retainVExp(exp->ap_x); //new
+			VContext * fcontext=retainVContext(context);
+
+			Value * nvx=newRunningValue(NULL,NULL);
+			pushEvalContinuation(nvx,
+				x, //x consumed here
+				retainVContext(context) //new
+			);
+			setRunningValue(v,NULL,NULL);
+			popContinuation(v);
+			pushApplyContinuation(v,nvx);
+			pushEvalContinuation(v,f,fcontext);
 		}
 	}else if (cont->type==CONT_APPLY){
-		VExp * exp=v->r_exp;
-		VContext * context=v->r_context;
-		Value * x = cont->ap_x;
+		VExp * exp=v->r_exp; //stolen
+		VContext * context=v->r_context; //stolen
+		Value * x = cont->ap_x; //stolen
 		if (exp->type==EXP_NUM){
-			v->type=VALUE_EXCEPTION;
-			v->message="cannot use numeric value as function";
+			//In place modify. Need to handle v->r_exp, v->r_context, v->r_cont
+			setExceptionValue(v,
+				"cannot use numeric value as function"
+			);
 		}else if (exp->type==EXP_ABS){
-            VContext * ncontext=insertRef(x ,context);
-			cont->type=CONT_EVAL;
-			cont->eval_exp=retainVExp(exp->abs_val);
-			cont->eval_context=ncontext;
-			v->r_exp=releaseVExp(v->r_exp);
-			v->r_context=releaseVContext(v->r_context);
+            VContext * ncontext=insertRef(
+				retainValue(x),
+				retainVContext(context)
+			); //new 
+			VExp * nexp=retainVExp(exp->abs_val);
+			setRunningValue(v,NULL,NULL);
+			popContinuation(v);
+			pushEvalContinuation(v,nexp,ncontext);
 		}else if (exp->type==EXP_NUMFUNC){
 			if (x->type!=VALUE_RESOLVED && x->type!=VALUE_EXCEPTION){
 				return x;
 			}
 			if (x->type==VALUE_EXCEPTION){
-				const char * message=x->message;
-				v->type=VALUE_EXCEPTION;
-				v->message=message;
+				setExceptionValue(v,x->message);
 			}else if (x->exp->type!=EXP_NUM){
-				v->type=VALUE_EXCEPTION;
-				v->message="cannot apply built-in function on non-numeric value";
+				setExceptionValue(v,
+					"cannot apply built-in function on non-numeric value"
+				);
 			}else{
 				VExp * nexp=NULL;
 				if (exp->func_type<FUNC_BINARY){
@@ -614,7 +756,6 @@ Value * resolveValue(Value * v){ // v : stolen    returns: stolen
 					if (x->exp->num_val.type==NUM_INT){
 						nexp=retainVExp(x->exp);
 					}else{ // must be double
-
 						nexp=newVExpNum(
 							intNumber(floor(x->exp->num_val.double_val))
 						);
@@ -628,23 +769,23 @@ Value * resolveValue(Value * v){ // v : stolen    returns: stolen
 						);
 					}
 				} // cannot be else
-				Continuation * ncont=cont->cont;
-				v->r_exp=nexp;
-				v->r_context=releaseVContext(v->r_context);
-				v->r_cont=ncont;
-				releaseContinuationSingle(cont);
+				//nexp : new
+				setRunningValue(v,
+					nexp,
+					NULL
+				);
+				popContinuation(v);
 			}
 		}else if (exp->type==EXP_NUMFUNC1){
 			if (x->type!=VALUE_RESOLVED && x->type!=VALUE_EXCEPTION){
 				return x;
 			}
 			if (x->type==VALUE_EXCEPTION){
-				const char * message=x->message;
-				v->type=VALUE_EXCEPTION;
-				v->message=message;
+				setExceptionValue(v,x->message);
 			}else if (x->exp->type!=EXP_NUM){
-				v->type=VALUE_EXCEPTION;
-				v->message="cannot apply built-in function on non-numeric value";
+				setExceptionValue(v,
+					"cannot apply built-in function on non-numeric value"
+				);
 			}else{
 				const char * exception_message=NULL;
 				Number result;
@@ -676,8 +817,8 @@ Value * resolveValue(Value * v){ // v : stolen    returns: stolen
 					}
 				}
 				if (exception_message!=NULL){
-					v->type=VALUE_EXCEPTION;
-					v->message=exception_message;
+					//In place modify. Need to handle v->r_exp, v->r_context, v->r_cont
+					setExceptionValue(v,exception_message);
 				}else{
 					VExp * nexp=NULL;
 					if (is_bool){
@@ -699,12 +840,12 @@ Value * resolveValue(Value * v){ // v : stolen    returns: stolen
 							result
 						);
 					}
-					Continuation * ncont=cont->cont;
-					releaseVExp(v->r_exp);
-					v->r_exp=nexp;
-					v->r_context=releaseVContext(v->r_context);
-					v->r_cont=ncont;
-					releaseContinuationSingle(cont);
+					//nexp : new
+					setRunningValue(v,
+						nexp,
+						NULL
+					);
+					popContinuation(v);
 				}
 			}
 		}else if (exp->type==EXP_INTLIST){
@@ -712,15 +853,15 @@ Value * resolveValue(Value * v){ // v : stolen    returns: stolen
 				return x;
 			}
 			if (x->type==VALUE_EXCEPTION){
-				const char * message=x->message;
-				v->type=VALUE_EXCEPTION;
-				v->message=message;
+				setExceptionValue(v,x->message);
 			}else if (x->exp->type!=EXP_NUM){
-				v->type=VALUE_EXCEPTION;
-				v->message="cannot apply built-in function on non-numeric value";
+				setExceptionValue(v,
+					"cannot apply built-in function on non-numeric value"
+				);
 			}else if (x->exp->num_val.type!=NUM_INT){
-				v->type=VALUE_EXCEPTION;
-				v->message="cannot append non-integer number to IntList";
+				setExceptionValue(v,
+						"cannot append non-integer number to IntList"
+				);
 			}else{
 				VExp * nexp=newVExpIntList(
 					newIntList(
@@ -728,57 +869,44 @@ Value * resolveValue(Value * v){ // v : stolen    returns: stolen
 						retainIntList(exp->intlist_val)
 					)
 				);
-				Continuation * ncont=cont->cont;
-				releaseVExp(v->r_exp);
-				v->r_exp=nexp;
-				v->r_context=releaseVContext(v->r_context);
-				v->r_cont=ncont;
-				releaseContinuationSingle(cont);
+				setRunningValue(v,nexp,NULL);
+				popContinuation(v);
 			}
 		}else if (exp->type==EXP_SYSCALL){
 			Value * to_resolve;
 			const char * error_message;
-			VExp * nexp=appendSyscallArg(exp,x,&error_message,&to_resolve);
+			VExp * nexp=appendSyscallArg(exp,x,&error_message,&to_resolve); // new
 			if (!nexp){
 				if (error_message){
-					v->type=VALUE_EXCEPTION;
-					v->message=error_message;
+					setExceptionValue(v,error_message);
 				}else if (to_resolve){
 					return to_resolve;
 				}
 			}else{
-				Continuation * ncont=cont->cont;
-				releaseVExp(v->r_exp);
-				v->r_exp=nexp;
-				v->r_context=context;
-				v->r_cont=ncont;
-				releaseContinuationSingle(cont);
+				setRunningValue(v,nexp,NULL);
+				popContinuation(v);
 			}
-		}// else   other expression types
+		}// else   impossible
 	}
 	return NULL;
 }
-void resolveAllValue(Value * v){
-	ValueStack * head=newValueStack();
-	head->val=v;
-	head->next=NULL;
+void resolveAllValue(Value * v){ // v : stolen
+	ValueStack * head=pushValueStack(v,NULL);
+	//this stack stores a list of stolen Value*
 	while (head){
 		if (head->val->type!=VALUE_RESOLVED && head->val->type!=VALUE_EXCEPTION){
 			Value * depends=resolveValue(head->val);
 			if (depends!=NULL && depends!=head->val){
-				ValueStack *nhead=newValueStack();
-				nhead->val=depends;
-				nhead->next=head;
-				head=nhead;
+				head=pushValueStack(depends,head);
 			}
 		}else{
-			head=head->next;
+			head=popValueStack(head);
 		}
 	}
 }
 
 
-int executeValue(Value * v,int argc,char ** args){
+int executeValue(Value * v,int argc,char ** args){ // v: consumed
 	int cur_argi=0;
 	char * cur_arg=NULL;
 	if (argc>0){
@@ -802,6 +930,7 @@ int executeValue(Value * v,int argc,char ** args){
 		}
 		if (v->exp->type!=EXP_SYSCALL){
 			displayExp(v->exp);
+			puts("");
 			exitcode=0;
 			break;
 		}
@@ -915,104 +1044,84 @@ int executeValue(Value * v,int argc,char ** args){
 			resultcode=system(filename);
 			free(filename);
 		}//else    other syscall
-		Value * sys_cont=v->exp->sys_cont;
+		Value * sys_cont=v->exp->sys_cont; //stolen
 		resolveAllValue(sys_cont);
 		if (sys_cont->type==VALUE_EXCEPTION){
+			sys_cont=retainValue(sys_cont);
+			releaseValue(v);
 			v=sys_cont;
 		}else{
-			Value * rv=newValue();
-			rv->type=VALUE_RESOLVED;
-			rv->exp=newVExpNum(
-				intNumber(resultcode)
+			Value * rv=newResolvedValue(
+				newVExpNum(intNumber(resultcode)),
+				NULL
 			);
-			rv->context=NULL;
-			Continuation * ncont=newContinuation();
-			ncont->type=CONT_APPLY;
-			ncont->ap_x=rv;
-			ncont->cont=NULL;
-			Value * nv=newValue();
-			nv->type=VALUE_RUNNING;
-			nv->r_exp=retainVExp(sys_cont->exp);
-			nv->r_context=retainVContext(sys_cont->context);
-			nv->r_cont=ncont;
+			Value * nv=newRunningValue(
+				retainVExp(sys_cont->exp),
+				retainVContext(sys_cont->context)
+			);
+			pushApplyContinuation(nv,rv);
+			releaseValue(v);
 			v=nv;
 		}
 	}
+	releaseValue(v);
 	free(files);
 	return exitcode;
 }
 
-VExp * makeApply(VExp * f,VExp * x){
+VExp * makeApply(VExp * f,VExp * x){ //f : consumed  x : consumed   return : new
     return newVExpApply(f,x);
 }
 
-VExp * makeInt(int a){
+VExp * makeInt(int a){ // return : new
     Number num_val;
     num_val.type = NUM_INT;
     num_val.int_val = a;
     return newVExpNum(num_val);
 }
 
-VExp * makeDouble(double a){
+VExp * makeDouble(double a){ // return : new
     Number num_val;
     num_val.type = NUM_DOUBLE;
     num_val.double_val = a;
     return newVExpNum(num_val);
 }
 
-VExp * makeAbs(VExp* abs_val){
+VExp * makeAbs(VExp* abs_val){ //abs_val : consumed   return : new
     return newVExpAbs(abs_val);
 }
 
-VExp * makeRef(int ref_val){
+VExp * makeRef(int ref_val){  //return: new
     return newVExpRef(ref_val);
 }
 
-//unfinished
-VExp * makeBuiltin(const char* func_name){
-    FuncType func_type;
-    SyscallType syscall_type;
-    bool isFunc = false;
-    bool isSyscall = false;
+VExp * makeBuiltin(const char* func_name){ //return: new
     if (strcmp(func_name,"+")==0){
-        func_type = FUNC_ADD;
-        isFunc = true;
+        return newVExpNumfunc(FUNC_ADD);
     }else if (strcmp(func_name,"-")==0){
-        func_type = FUNC_SUB;
-        isFunc = true;
+        return newVExpNumfunc(FUNC_SUB);
     }else if (strcmp(func_name,"*")==0){
-        func_type = FUNC_MUL;
-        isFunc = true;
+        return newVExpNumfunc(FUNC_MUL);
     }else if (strcmp(func_name,"/")==0){
-        func_type = FUNC_DIV;
-        isFunc = true;
+        return newVExpNumfunc(FUNC_DIV);
     }else if (strcmp(func_name,"%")==0){
-        func_type = FUNC_MOD;
-        isFunc = true;
+        return newVExpNumfunc(FUNC_MOD);
     }else if (strcmp(func_name,"<")==0){
-        func_type = FUNC_LE;
-        isFunc = true;
+        return newVExpNumfunc(FUNC_LE);
     }else if (strcmp(func_name,">=")==0){
-        func_type = FUNC_NLE;
-        isFunc = true;
+        return newVExpNumfunc(FUNC_NLE);
     }else if (strcmp(func_name,">")==0){
-        func_type = FUNC_GE;
-        isFunc = true;
+        return newVExpNumfunc(FUNC_GE);
     }else if (strcmp(func_name,"<=")==0){
-        func_type = FUNC_NGE;
-        isFunc = true;
+       return newVExpNumfunc(FUNC_NGE);
     }else if (strcmp(func_name,"/=")==0){
-        func_type = FUNC_NEQ;
-        isFunc = true;
+        return newVExpNumfunc(FUNC_NEQ);
     }else if (strcmp(func_name,"=")==0){
-        func_type = FUNC_EQ;
-        isFunc = true;
+        return newVExpNumfunc(FUNC_EQ);
     }else if (strcmp(func_name,"toInt")==0){
-        func_type = FUNC_TOINT;
-        isFunc = true;
+        return newVExpNumfunc(FUNC_TOINT);
     }else if (strcmp(func_name,"toFloat")==0){
-        func_type = FUNC_TOFLOAT;
-        isFunc = true;
+        return newVExpNumfunc(FUNC_TOFLOAT);
     }else if (strcmp(func_name,"exit")==0){
         return newVExpSyscall0(SYS_EXIT);
     }else if (strcmp(func_name,"putChar")==0){
@@ -1037,29 +1146,15 @@ VExp * makeBuiltin(const char* func_name){
         return newVExpSyscall0(SYS_GETARG);
     }else if (strcmp(func_name,"systemCmd")==0){
         return newVExpSyscall0(SYS_SYSTEM);
-    }
-
-
-    if (isFunc){
-        return newVExpNumfunc(func_type);
-    }
-    if (isSyscall){
-        return newVExpSyscall0(syscall_type);
-    }
-    return NULL;
+    }else return NULL;
 }
 
-int executeVExp(VExp * exp,int argc,char ** argv){
-    Value * v = newValue();
-    VContext * context = newVContext();
-    Continuation * cont = newContinuation();
-    cont->type = CONT_EVAL;
-    cont->eval_exp = exp;
-    cont->eval_context = context;
-    v->r_exp = NULL;
-    v->r_context = NULL;
-    v->r_cont = cont;
-    return executeValue(v,argc,argv);
+int executeVExp(VExp * exp,int argc,char ** argv){ // exp : consumed
+	Value * v=newRunningValue(NULL,NULL); // new
+	pushEvalContinuation(v,
+		exp, //exp is consumed here
+		NULL);
+    return executeValue(v,argc,argv); // v is consumed here
 }
 
 /*int main(int argc,char ** argv){

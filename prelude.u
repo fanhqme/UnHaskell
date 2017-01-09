@@ -52,7 +52,7 @@
 (def sum (foldl + 0))
 (def map (\f (foldr (\h r (cons (f h) r)) empty)))
 (def cmpList (\cmp (recur (\f (\l1 l2
-	(l1 True (\h1 r1 (l2 False (\h2 r2
+	(l1 (l2 False (\_ _ True)) (\h1 r1 (l2 False (\h2 r2
 		((cmp h1 h2) True
 			((cmp h2 h1) False
 				(f r1 r2)
