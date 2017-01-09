@@ -1,23 +1,57 @@
 (def isDigit (\x (and (>= x '0') (<= x '9'))))
-(def isSpace (\x (or (= x ' ') (or (= x '\t') (= x '\n')))))
+(def isSpace (\x (or (= x ' ') (or (= x '\t') (or (= x '\n') (= x '\r'))))))
 (def intFromDigit (\x (- x '0')))
 (def digitFromInt (+ '0'))
-(def atoi (\s (let
-	(atoiP (foldl (\t a (+ (* t 10) (intFromDigit a))) 0 ))
-	(s 0 (\h r (
-		(= h '-') (neg (atoiP r))
-		(atoiP s)
-	))))
-))
-(def itoa (\s (let
-	(itoaP (recur (\f (\tail x
-		((<= x 9) (cons (digitFromInt x) tail)
-			(f (cons (digitFromInt (% x 10)) tail) (/ x 10))
-		))) ""))
-	((>= s 0) (itoaP s)
-		(cons '-' (itoaP (neg s)))
+
+(let signedParse (\f s
+	(s (f s) (\h r
+		((= h '-') (neg (f r))
+			((= h '+') (f r)
+				(f s)
+			)
+		)
 	))
 ))
+(let signedShow (\f s
+	((< s 0) (cons '-' (f (neg s))) (f s))
+))
+
+(def intFromDigits (foldl (\t a (+ (* t 10) (intFromDigit a))) 0))
+(def atoi (signedParse (. intFromDigits (takeWhile isDigit))))
+(def uitoa (recur (\f (\tail x
+		((<= x 9) (cons (digitFromInt x) tail)
+			(f (cons (digitFromInt (% x 10)) tail) (/ x 10))
+		)
+)) ""))
+(def itoa (signedShow uitoa))
+(def atof (let
+	(mantissa (foldr (\a t (* 0.1 (+ (intFromDigit a) t))) 0))
+	(atofP (\s ((span isDigit s) (\ipart fpart (let
+		(ival (intFromDigits ipart))
+		(fpart ival (\h r
+			((/= h '.') ival
+				(+ ival (mantissa (takeWhile isDigit r)))
+			)
+		))
+	)))))
+	(signedParse atofP)
+))
+(def ftoaPrecision (\prec (let
+	(ftoaP (\s (let
+		(ival (toInt s))
+		(mval (- s ival))
+		(mpart (recur (\f (\togo cur
+			((<= togo 0) empty (let
+				(c10 (* cur 10))
+				(d (toInt c10))
+				(cons (digitFromInt d) (f (- togo 1) (- c10 d)))
+			))
+		)) prec mval))
+		(++ (uitoa ival) ((> prec 0) (cons '.' mpart) empty))
+	)))
+	(signedShow ftoaP)
+)))
+(def ftoa (ftoaPrecision 6))
 (def splitStr (\d s (let
 	(appendHead (\a l (l (list (list a)) (\h r (cons (cons a h) r)))))
 	(foldr (\a r

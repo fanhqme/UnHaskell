@@ -65,6 +65,18 @@
 		((cond h) (f r) l)
 	))
 )))))
+(def takeWhile (\cond (recur (\f (\l
+	(l l (\h r
+		((cond h) (cons h (f r)) empty)
+	))
+)))))
+(def span (\cond (recur (\f (\l
+	(l (pair l l) (\h r
+		((cond h) ((f r) (\l1 l2 (pair (cons h l1) l2)))
+			(pair empty l)
+		)
+	))
+)))))
 
 
 ; the Maybe protocol:  (m nothing_value (\v just_value))
