@@ -144,6 +144,7 @@ struct VContext{
 
 //===========================================================
 Value * releaseValue(Value *);
+VExp * releaseVExp(VExp *);
 //===========================================================
 
 VContext * allocateVContext(VContext * p){
@@ -169,7 +170,6 @@ VContext * allocateVContext(VContext * p){
 
 VContext * newVContext(){
     VContext * p = allocateVContext(NULL);
-    //p->next = NULL;
     p->prev = NULL;
     p->val = NULL;
     return p;
@@ -205,24 +205,69 @@ Value * lookUpRef(int ref,VContext * context){
 VContext * insertRef(Value * v,VContext * context){
     VContext * ncontext=newVContext();
     ncontext->val=v;
-    ncontext->prev=context;
-    //context->next = ncontext;
+    ncontext->prev=retainVContext(context);
     VContext * p=context;
-    while (p){
+    /*while (p){
         retainVContext(p);
         p = p->prev;
-    }
+    }*/
     return ncontext;
 }
 
 //===========================================================
 
+Continuation * allocateContinuation(Continuation * p){
+	static Continuation * pool=NULL;
+	if (!p){
+		if (!pool){
+			Continuation * p=(Continuation *)malloc(sizeof(Continuation)*1000);
+			for (int i=0;i<1000;i++){
+				p[i].cont=pool;
+				pool=p+i;
+			}
+		}
+		p=pool;
+		pool=pool->cont;
+		return p;
+	}else{
+		p->cont=pool;
+		pool=p;
+		return NULL;
+	}
+}
+
 Continuation * newContinuation(){
-    return (Continuation *)malloc(sizeof(Continuation));
+    Continuation * p = allocateContinuation(NULL);
+    p->cont=NULL;
+    return p;
 }
 
 Continuation * releaseContinuation(Continuation * p){
-    free(p);
+    if (p){
+        if (p->type==CONT_EVAL){
+            releaseVExp(p->eval_exp);
+            releaseVContext(p->eval_context);
+        }else if (p->type==CONT_APPLY){
+            releaseValue(p->ap_x);
+        }
+        if (p->cont){
+            releaseContinuation(p->cont);
+        }
+        allocateContinuation(p);
+    }
+    return NULL;
+}
+
+Continuation * releaseContinuationSingle(Continuation * p){
+    if (p){
+        if (p->type==CONT_EVAL){
+            releaseVExp(p->eval_exp);
+            releaseVContext(p->eval_context);
+        }else if (p->type==CONT_APPLY){
+            releaseValue(p->ap_x);
+        }
+        allocateContinuation(p);
+    }
     return NULL;
 }
 
@@ -237,7 +282,7 @@ void displayExp(VExp * e){
             printf("%f\n",num_val.double_val);
         }
     }else {
-        printf("Not a number");
+        printf("Not a number\n");
     }
 }
 
@@ -479,6 +524,7 @@ Value * resolveValue(Value * v){ // v : stolen    returns: stolen
 	if (!cont){
 		VExp * exp=v->r_exp;
 		VContext * context=v->r_context;
+		releaseContinuation(v->r_cont);
 		v->type=VALUE_RESOLVED;
 		v->exp=exp;
 		v->context=context;
@@ -491,6 +537,7 @@ Value * resolveValue(Value * v){ // v : stolen    returns: stolen
 			v->r_exp=retainVExp(exp);
 			v->r_context=retainVContext(context);
 			v->r_cont=ncont;
+			releaseContinuationSingle(cont);
 		}if (exp->type==EXP_REF){
 			int ref=exp->ref_val;
 			Value * ref_val=lookUpRef(ref,context);
@@ -498,6 +545,7 @@ Value * resolveValue(Value * v){ // v : stolen    returns: stolen
 				v->r_exp=retainVExp(ref_val->exp);
 				v->r_context=retainVContext(ref_val->context);
 				v->r_cont=cont->cont;
+				releaseContinuationSingle(cont);
 			}else if(ref_val->type==VALUE_EXCEPTION){
 				v->type=VALUE_EXCEPTION;
 				v->message=ref_val->message;
@@ -513,8 +561,8 @@ Value * resolveValue(Value * v){ // v : stolen    returns: stolen
 			nvx->r_context=NULL;
 			nvx->r_cont=newContinuation();
 			nvx->r_cont->type=CONT_EVAL;
-			nvx->r_cont->eval_exp=x;
-			nvx->r_cont->eval_context=context;
+			nvx->r_cont->eval_exp=retainVExp(x);
+			nvx->r_cont->eval_context=retainVContext(context);
 			nvx->r_cont->cont=NULL;
 			Continuation * ncont=newContinuation();
 			ncont->type=CONT_APPLY;
@@ -522,13 +570,13 @@ Value * resolveValue(Value * v){ // v : stolen    returns: stolen
 			ncont->ap_x=nvx;
 			Continuation * ncont2=newContinuation();
 			ncont2->type=CONT_EVAL;
-			ncont2->eval_exp=f;
-			ncont2->eval_context=context;
+			ncont2->eval_exp=retainVExp(f);
+			ncont2->eval_context=retainVContext(context);
 			ncont2->cont=ncont;
-			v->r_exp=NULL;
-			v->r_context=NULL;
+			v->r_exp=releaseVExp(v->r_exp);
+			v->r_context=releaseVContext(v->r_context);
+			releaseContinuationSingle(cont);
 			v->r_cont=ncont2;
-			//return nvx;
 		}
 	}else if (cont->type==CONT_APPLY){
 		VExp * exp=v->r_exp;
@@ -538,26 +586,12 @@ Value * resolveValue(Value * v){ // v : stolen    returns: stolen
 			v->type=VALUE_EXCEPTION;
 			v->message="cannot use numeric value as function";
 		}else if (exp->type==EXP_ABS){
-		    /*
-			VContext * ncontext=insertRef(x,context);
-			Continuation * ncont=newContinuation();
-			ncont->type=CONT_EVAL;
-			ncont->eval_exp=exp->abs_val;
-			ncont->eval_context=ncontext;
-			ncont->cont=cont;
-			v->r_cont=ncont;
-			//cont->type=CONT_EVAL;
-			//cont->eval_exp=exp->abs_val;
-			//cont->eval_context=ncontext;
-			v->r_exp=NULL;
-			v->r_context=NULL;
-			*/
-            VContext * ncontext=insertRef(x,context);
+            VContext * ncontext=insertRef(x ,context);
 			cont->type=CONT_EVAL;
-			cont->eval_exp=exp->abs_val;
+			cont->eval_exp=retainVExp(exp->abs_val);
 			cont->eval_context=ncontext;
-			v->r_exp=NULL;
-			v->r_context=NULL;
+			v->r_exp=releaseVExp(v->r_exp);
+			v->r_context=releaseVContext(v->r_context);
 		}else if (exp->type==EXP_NUMFUNC){
 			if (x->type!=VALUE_RESOLVED && x->type!=VALUE_EXCEPTION){
 				return x;
@@ -596,8 +630,9 @@ Value * resolveValue(Value * v){ // v : stolen    returns: stolen
 				} // cannot be else
 				Continuation * ncont=cont->cont;
 				v->r_exp=nexp;
-				v->r_context=NULL;
+				v->r_context=releaseVContext(v->r_context);
 				v->r_cont=ncont;
+				releaseContinuationSingle(cont);
 			}
 		}else if (exp->type==EXP_NUMFUNC1){
 			if (x->type!=VALUE_RESOLVED && x->type!=VALUE_EXCEPTION){
@@ -665,9 +700,11 @@ Value * resolveValue(Value * v){ // v : stolen    returns: stolen
 						);
 					}
 					Continuation * ncont=cont->cont;
+					releaseVExp(v->r_exp);
 					v->r_exp=nexp;
-					v->r_context=NULL;
+					v->r_context=releaseVContext(v->r_context);
 					v->r_cont=ncont;
+					releaseContinuationSingle(cont);
 				}
 			}
 		}else if (exp->type==EXP_INTLIST){
@@ -692,9 +729,11 @@ Value * resolveValue(Value * v){ // v : stolen    returns: stolen
 					)
 				);
 				Continuation * ncont=cont->cont;
+				releaseVExp(v->r_exp);
 				v->r_exp=nexp;
-				v->r_context=NULL;
+				v->r_context=releaseVContext(v->r_context);
 				v->r_cont=ncont;
+				releaseContinuationSingle(cont);
 			}
 		}else if (exp->type==EXP_SYSCALL){
 			Value * to_resolve;
@@ -709,9 +748,11 @@ Value * resolveValue(Value * v){ // v : stolen    returns: stolen
 				}
 			}else{
 				Continuation * ncont=cont->cont;
+				releaseVExp(v->r_exp);
 				v->r_exp=nexp;
 				v->r_context=context;
 				v->r_cont=ncont;
+				//releaseContinuationSingle(cont);
 			}
 		}// else   other expression types
 	}
