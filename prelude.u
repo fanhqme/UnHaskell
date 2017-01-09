@@ -75,7 +75,7 @@
 ; numeric utils
 (def neg (- 0))
 
-; converting strings to built-in strings
+; IO macros
 (let fileName (recur (\f (\name
 	(name
 		makeIntList
@@ -86,3 +86,7 @@
 (def system (\f (systemCmd (fileName f))))
 (def ReadMode 0)
 (def WriteMode 1)
+(def AppendMode 2)
+(def ReadWriteMode 3)
+(def stdin 0)
+(def stdout 1)

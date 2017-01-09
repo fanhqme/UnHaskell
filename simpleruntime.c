@@ -314,7 +314,7 @@ void displayExpRecursive(VExp * e,int level){ // e : stolen
 		printf("(");
 		displayExpRecursive(e->ap_f,level);
 		printf(" ");
-		displayExpRecursive(e->ap_f,level);
+		displayExpRecursive(e->ap_x,level);
 		printf(")");
 	}else if (e->type==EXP_NUMFUNC){
 		printf("%s",funcNames(e->func_type));

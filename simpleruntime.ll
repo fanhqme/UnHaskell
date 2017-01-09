@@ -1287,10 +1287,10 @@ define void @displayExpRecursive(%struct.VExp* nocapture readonly %e, i32 %level
     i32 1, label %16
     i32 7, label %22
     i32 8, label %28
-    i32 2, label %33
-    i32 3, label %40
-    i32 4, label %60
-    i32 5, label %70
+    i32 2, label %35
+    i32 3, label %42
+    i32 4, label %62
+    i32 5, label %72
   ]
 
 ; <label>:3                                       ; preds = %0
@@ -1337,165 +1337,167 @@ define void @displayExpRecursive(%struct.VExp* nocapture readonly %e, i32 %level
   %31 = load %struct.VExp** %30, align 8, !tbaa !18
   tail call void @displayExpRecursive(%struct.VExp* %31, i32 %level)
   %putchar9 = tail call i32 @putchar(i32 32) #7
-  %32 = load %struct.VExp** %30, align 8, !tbaa !18
-  tail call void @displayExpRecursive(%struct.VExp* %32, i32 %level)
+  %32 = getelementptr inbounds %struct.VExp* %e, i64 0, i32 3, i32 0, i32 2
+  %33 = bitcast %union.SyscallArg* %32 to %struct.VExp**
+  %34 = load %struct.VExp** %33, align 8, !tbaa !20
+  tail call void @displayExpRecursive(%struct.VExp* %34, i32 %level)
   %putchar10 = tail call i32 @putchar(i32 41) #7
   ret void
 
-; <label>:33                                      ; preds = %0
-  %34 = getelementptr inbounds %struct.VExp* %e, i64 0, i32 3, i32 0, i32 0
-  %35 = load i32* %34, align 4, !tbaa !38
-  %36 = zext i32 %35 to i64
-  %37 = getelementptr inbounds [14 x i8*]* @funcNames.names, i64 0, i64 %36
-  %38 = load i8** %37, align 8, !tbaa !1
-  %39 = tail call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([3 x i8]* @.str31, i64 0, i64 0), i8* %38) #7
+; <label>:35                                      ; preds = %0
+  %36 = getelementptr inbounds %struct.VExp* %e, i64 0, i32 3, i32 0, i32 0
+  %37 = load i32* %36, align 4, !tbaa !38
+  %38 = zext i32 %37 to i64
+  %39 = getelementptr inbounds [14 x i8*]* @funcNames.names, i64 0, i64 %38
+  %40 = load i8** %39, align 8, !tbaa !1
+  %41 = tail call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([3 x i8]* @.str31, i64 0, i64 0), i8* %40) #7
   br label %displayNumber.exit
 
-; <label>:40                                      ; preds = %0
-  %41 = getelementptr inbounds %struct.VExp* %e, i64 0, i32 3, i32 0, i32 0
-  %42 = load i32* %41, align 4, !tbaa !40
-  %43 = zext i32 %42 to i64
-  %44 = getelementptr inbounds [14 x i8*]* @funcNames.names, i64 0, i64 %43
-  %45 = load i8** %44, align 8, !tbaa !1
-  %46 = tail call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([5 x i8]* @.str32, i64 0, i64 0), i8* %45) #7
-  %47 = getelementptr inbounds %struct.VExp* %e, i64 0, i32 3, i32 0, i32 2
-  %48 = bitcast %union.SyscallArg* %47 to i32*
-  %49 = load i32* %48, align 1
-  %50 = getelementptr %union.SyscallArg* %47, i64 1
-  %51 = bitcast %union.SyscallArg* %50 to i64*
-  %52 = load i64* %51, align 1
-  %53 = icmp eq i32 %49, 0
-  br i1 %53, label %54, label %57
+; <label>:42                                      ; preds = %0
+  %43 = getelementptr inbounds %struct.VExp* %e, i64 0, i32 3, i32 0, i32 0
+  %44 = load i32* %43, align 4, !tbaa !40
+  %45 = zext i32 %44 to i64
+  %46 = getelementptr inbounds [14 x i8*]* @funcNames.names, i64 0, i64 %45
+  %47 = load i8** %46, align 8, !tbaa !1
+  %48 = tail call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([5 x i8]* @.str32, i64 0, i64 0), i8* %47) #7
+  %49 = getelementptr inbounds %struct.VExp* %e, i64 0, i32 3, i32 0, i32 2
+  %50 = bitcast %union.SyscallArg* %49 to i32*
+  %51 = load i32* %50, align 1
+  %52 = getelementptr %union.SyscallArg* %49, i64 1
+  %53 = bitcast %union.SyscallArg* %52 to i64*
+  %54 = load i64* %53, align 1
+  %55 = icmp eq i32 %51, 0
+  br i1 %55, label %56, label %59
 
-; <label>:54                                      ; preds = %40
-  %55 = trunc i64 %52 to i32
-  %56 = tail call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([3 x i8]* @.str24, i64 0, i64 0), i32 %55) #7
+; <label>:56                                      ; preds = %42
+  %57 = trunc i64 %54 to i32
+  %58 = tail call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([3 x i8]* @.str24, i64 0, i64 0), i32 %57) #7
   br label %displayNumber.exit12
 
-; <label>:57                                      ; preds = %40
-  %58 = bitcast i64 %52 to double
-  %59 = tail call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([3 x i8]* @.str25, i64 0, i64 0), double %58) #7
+; <label>:59                                      ; preds = %42
+  %60 = bitcast i64 %54 to double
+  %61 = tail call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([3 x i8]* @.str25, i64 0, i64 0), double %60) #7
   br label %displayNumber.exit12
 
-displayNumber.exit12:                             ; preds = %54, %57
+displayNumber.exit12:                             ; preds = %56, %59
   %putchar7 = tail call i32 @putchar(i32 41) #7
   br label %displayNumber.exit
 
-; <label>:60                                      ; preds = %0
-  %61 = tail call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([13 x i8]* @.str33, i64 0, i64 0)) #7
-  %62 = getelementptr inbounds %struct.VExp* %e, i64 0, i32 3
-  %63 = bitcast %union.anon.1* %62 to %struct.IntList**
-  %p.013 = load %struct.IntList** %63, align 8
-  %64 = icmp eq %struct.IntList* %p.013, null
-  br i1 %64, label %._crit_edge, label %.lr.ph
+; <label>:62                                      ; preds = %0
+  %63 = tail call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([13 x i8]* @.str33, i64 0, i64 0)) #7
+  %64 = getelementptr inbounds %struct.VExp* %e, i64 0, i32 3
+  %65 = bitcast %union.anon.1* %64 to %struct.IntList**
+  %p.013 = load %struct.IntList** %65, align 8
+  %66 = icmp eq %struct.IntList* %p.013, null
+  br i1 %66, label %._crit_edge, label %.lr.ph
 
-.lr.ph:                                           ; preds = %60, %.lr.ph
-  %p.014 = phi %struct.IntList* [ %p.0, %.lr.ph ], [ %p.013, %60 ]
-  %65 = getelementptr inbounds %struct.IntList* %p.014, i64 0, i32 0
-  %66 = load i32* %65, align 4, !tbaa !9
-  %67 = tail call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([4 x i8]* @.str34, i64 0, i64 0), i32 %66) #7
-  %68 = getelementptr inbounds %struct.IntList* %p.014, i64 0, i32 1
-  %p.0 = load %struct.IntList** %68, align 8
-  %69 = icmp eq %struct.IntList* %p.0, null
-  br i1 %69, label %._crit_edge, label %.lr.ph
+.lr.ph:                                           ; preds = %62, %.lr.ph
+  %p.014 = phi %struct.IntList* [ %p.0, %.lr.ph ], [ %p.013, %62 ]
+  %67 = getelementptr inbounds %struct.IntList* %p.014, i64 0, i32 0
+  %68 = load i32* %67, align 4, !tbaa !9
+  %69 = tail call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([4 x i8]* @.str34, i64 0, i64 0), i32 %68) #7
+  %70 = getelementptr inbounds %struct.IntList* %p.014, i64 0, i32 1
+  %p.0 = load %struct.IntList** %70, align 8
+  %71 = icmp eq %struct.IntList* %p.0, null
+  br i1 %71, label %._crit_edge, label %.lr.ph
 
-._crit_edge:                                      ; preds = %.lr.ph, %60
+._crit_edge:                                      ; preds = %.lr.ph, %62
   %putchar6 = tail call i32 @putchar(i32 41) #7
   br label %displayNumber.exit
 
-; <label>:70                                      ; preds = %0
-  %71 = getelementptr inbounds %struct.VExp* %e, i64 0, i32 3, i32 0, i32 0
-  %72 = load i32* %71, align 4, !tbaa !28
-  %73 = zext i32 %72 to i64
-  %74 = getelementptr inbounds [8 x i8*]* @syscallNames.names, i64 0, i64 %73
-  %75 = load i8** %74, align 8, !tbaa !1
-  %76 = tail call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([4 x i8]* @.str35, i64 0, i64 0), i8* %75) #7
-  %77 = load i32* %71, align 4, !tbaa !28
-  %78 = getelementptr inbounds %struct.VExp* %e, i64 0, i32 3, i32 0, i32 1
-  %79 = load i32* %78, align 4, !tbaa !26
-  %80 = icmp sgt i32 %79, 0
-  br i1 %80, label %switch.early.test, label %100
+; <label>:72                                      ; preds = %0
+  %73 = getelementptr inbounds %struct.VExp* %e, i64 0, i32 3, i32 0, i32 0
+  %74 = load i32* %73, align 4, !tbaa !28
+  %75 = zext i32 %74 to i64
+  %76 = getelementptr inbounds [8 x i8*]* @syscallNames.names, i64 0, i64 %75
+  %77 = load i8** %76, align 8, !tbaa !1
+  %78 = tail call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([4 x i8]* @.str35, i64 0, i64 0), i8* %77) #7
+  %79 = load i32* %73, align 4, !tbaa !28
+  %80 = getelementptr inbounds %struct.VExp* %e, i64 0, i32 3, i32 0, i32 1
+  %81 = load i32* %80, align 4, !tbaa !26
+  %82 = icmp sgt i32 %81, 0
+  br i1 %82, label %switch.early.test, label %102
 
-switch.early.test:                                ; preds = %70
-  switch i32 %77, label %81 [
-    i32 6, label %100
-    i32 0, label %100
+switch.early.test:                                ; preds = %72
+  switch i32 %79, label %83 [
+    i32 6, label %102
+    i32 0, label %102
   ]
 
-; <label>:81                                      ; preds = %switch.early.test
-  %82 = zext i32 %77 to i64
-  %83 = lshr i64 61, %82
-  %84 = and i64 %83, 1
-  %85 = icmp eq i64 %84, 0
-  br i1 %85, label %91, label %86
+; <label>:83                                      ; preds = %switch.early.test
+  %84 = zext i32 %79 to i64
+  %85 = lshr i64 61, %84
+  %86 = and i64 %85, 1
+  %87 = icmp eq i64 %86, 0
+  br i1 %87, label %93, label %88
 
-; <label>:86                                      ; preds = %81
-  %87 = getelementptr inbounds %struct.VExp* %e, i64 0, i32 3, i32 0, i32 2
-  %88 = bitcast %union.SyscallArg* %87 to i32*
-  %89 = load i32* %88, align 4, !tbaa !29
-  %90 = tail call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([4 x i8]* @.str34, i64 0, i64 0), i32 %89) #7
-  br label %100
+; <label>:88                                      ; preds = %83
+  %89 = getelementptr inbounds %struct.VExp* %e, i64 0, i32 3, i32 0, i32 2
+  %90 = bitcast %union.SyscallArg* %89 to i32*
+  %91 = load i32* %90, align 4, !tbaa !29
+  %92 = tail call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([4 x i8]* @.str34, i64 0, i64 0), i32 %91) #7
+  br label %102
 
-; <label>:91                                      ; preds = %81
-  %92 = tail call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([14 x i8]* @.str36, i64 0, i64 0)) #7
-  %93 = getelementptr inbounds %struct.VExp* %e, i64 0, i32 3, i32 0, i32 2, i32 0
-  %p1.015 = load %struct.IntList** %93, align 8
-  %94 = icmp eq %struct.IntList* %p1.015, null
-  br i1 %94, label %._crit_edge19, label %.lr.ph18
+; <label>:93                                      ; preds = %83
+  %94 = tail call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([14 x i8]* @.str36, i64 0, i64 0)) #7
+  %95 = getelementptr inbounds %struct.VExp* %e, i64 0, i32 3, i32 0, i32 2, i32 0
+  %p1.015 = load %struct.IntList** %95, align 8
+  %96 = icmp eq %struct.IntList* %p1.015, null
+  br i1 %96, label %._crit_edge19, label %.lr.ph18
 
-.lr.ph18:                                         ; preds = %91, %.lr.ph18
-  %p1.016 = phi %struct.IntList* [ %p1.0, %.lr.ph18 ], [ %p1.015, %91 ]
-  %95 = getelementptr inbounds %struct.IntList* %p1.016, i64 0, i32 0
-  %96 = load i32* %95, align 4, !tbaa !9
-  %97 = tail call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([4 x i8]* @.str34, i64 0, i64 0), i32 %96) #7
-  %98 = getelementptr inbounds %struct.IntList* %p1.016, i64 0, i32 1
-  %p1.0 = load %struct.IntList** %98, align 8
-  %99 = icmp eq %struct.IntList* %p1.0, null
-  br i1 %99, label %._crit_edge19, label %.lr.ph18
+.lr.ph18:                                         ; preds = %93, %.lr.ph18
+  %p1.016 = phi %struct.IntList* [ %p1.0, %.lr.ph18 ], [ %p1.015, %93 ]
+  %97 = getelementptr inbounds %struct.IntList* %p1.016, i64 0, i32 0
+  %98 = load i32* %97, align 4, !tbaa !9
+  %99 = tail call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([4 x i8]* @.str34, i64 0, i64 0), i32 %98) #7
+  %100 = getelementptr inbounds %struct.IntList* %p1.016, i64 0, i32 1
+  %p1.0 = load %struct.IntList** %100, align 8
+  %101 = icmp eq %struct.IntList* %p1.0, null
+  br i1 %101, label %._crit_edge19, label %.lr.ph18
 
-._crit_edge19:                                    ; preds = %.lr.ph18, %91
+._crit_edge19:                                    ; preds = %.lr.ph18, %93
   %putchar5 = tail call i32 @putchar(i32 41) #7
-  br label %100
+  br label %102
 
-; <label>:100                                     ; preds = %switch.early.test, %switch.early.test, %70, %86, %._crit_edge19
-  %101 = load i32* %78, align 4, !tbaa !26
-  %102 = icmp sgt i32 %101, 1
-  %103 = icmp eq i32 %77, 1
-  %104 = icmp eq i32 %77, 4
-  %105 = or i1 %103, %104
-  %or.cond4 = and i1 %102, %105
-  br i1 %or.cond4, label %106, label %110
+; <label>:102                                     ; preds = %switch.early.test, %switch.early.test, %72, %88, %._crit_edge19
+  %103 = load i32* %80, align 4, !tbaa !26
+  %104 = icmp sgt i32 %103, 1
+  %105 = icmp eq i32 %79, 1
+  %106 = icmp eq i32 %79, 4
+  %107 = or i1 %105, %106
+  %or.cond4 = and i1 %104, %107
+  br i1 %or.cond4, label %108, label %112
 
-; <label>:106                                     ; preds = %100
-  %107 = getelementptr inbounds %struct.VExp* %e, i64 0, i32 3, i32 0, i32 3
-  %108 = load i32* %107, align 4, !tbaa !43
-  %109 = tail call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([4 x i8]* @.str34, i64 0, i64 0), i32 %108) #7
-  %.pre = load i32* %78, align 4, !tbaa !26
-  br label %110
+; <label>:108                                     ; preds = %102
+  %109 = getelementptr inbounds %struct.VExp* %e, i64 0, i32 3, i32 0, i32 3
+  %110 = load i32* %109, align 4, !tbaa !43
+  %111 = tail call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([4 x i8]* @.str34, i64 0, i64 0), i32 %110) #7
+  %.pre = load i32* %80, align 4, !tbaa !26
+  br label %112
 
-; <label>:110                                     ; preds = %106, %100
-  %111 = phi i32 [ %.pre, %106 ], [ %101, %100 ]
-  %112 = icmp sgt i32 %111, 0
-  br i1 %112, label %113, label %122
+; <label>:112                                     ; preds = %108, %102
+  %113 = phi i32 [ %.pre, %108 ], [ %103, %102 ]
+  %114 = icmp sgt i32 %113, 0
+  br i1 %114, label %115, label %124
 
-; <label>:113                                     ; preds = %110
-  %114 = sext i32 %111 to i64
-  %115 = load i32* %71, align 4, !tbaa !28
-  %116 = zext i32 %115 to i64
-  %117 = getelementptr inbounds [8 x [4 x i32]]* @syscall_arginfo, i64 0, i64 %116, i64 %114
-  %118 = load i32* %117, align 4, !tbaa !29
-  %119 = icmp eq i32 %118, 2
-  br i1 %119, label %120, label %122
+; <label>:115                                     ; preds = %112
+  %116 = sext i32 %113 to i64
+  %117 = load i32* %73, align 4, !tbaa !28
+  %118 = zext i32 %117 to i64
+  %119 = getelementptr inbounds [8 x [4 x i32]]* @syscall_arginfo, i64 0, i64 %118, i64 %116
+  %120 = load i32* %119, align 4, !tbaa !29
+  %121 = icmp eq i32 %120, 2
+  br i1 %121, label %122, label %124
 
-; <label>:120                                     ; preds = %113
-  %121 = tail call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([5 x i8]* @.str37, i64 0, i64 0)) #7
-  br label %122
+; <label>:122                                     ; preds = %115
+  %123 = tail call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([5 x i8]* @.str37, i64 0, i64 0)) #7
+  br label %124
 
-; <label>:122                                     ; preds = %120, %113, %110
+; <label>:124                                     ; preds = %122, %115, %112
   %putchar = tail call i32 @putchar(i32 41) #7
   br label %displayNumber.exit
 
-displayNumber.exit:                               ; preds = %13, %10, %0, %displayNumber.exit12, %122, %._crit_edge, %33, %22
+displayNumber.exit:                               ; preds = %13, %10, %0, %displayNumber.exit12, %124, %._crit_edge, %35, %22
   ret void
 }
 
