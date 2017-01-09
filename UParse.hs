@@ -244,10 +244,23 @@ parseSSExp (tree,sp) = case tree of
 			(e1,p1) <- parseSSExp e
 			(e2,p2) <- constructRunSugar r p
 			return (SSApply (SSLambda name (e2,p2),p_0) (e1,p1),p0)
-		constructRunSugar ((STTList [(STTNode (STAtom name),p0),e],_):r) p = do
-			(e1,p1) <- parseSSExp e
-			(e2,p2) <- constructRunSugar r p
-			return (SSApply (e1,p1) (SSLambda name (e2,p2),p0),p0)
+		--constructRunSugar ((STTList [(STTNode (STAtom name),p0),e],_):r) p = do
+			--(e1,p1) <- parseSSExp e
+			--(e2,p2) <- constructRunSugar r p
+			--return (SSApply (e1,p1) (SSLambda name (e2,p2),p0),p0)
+		constructRunSugar ((STTList ((n0,p0):listr),_):r) p = let
+			names_node = init ((n0,p0):listr)
+			ebody = last ((n0,p0):listr)
+			good = all (\node -> case node of
+				(STTNode (STAtom _),_) -> True
+				_ -> False) names_node
+			in case good of
+				False -> SFail "invalid syntax in do/run clause" p0
+				True -> do
+					(e1,p1) <- parseSSExp ebody
+					(e2,p2) <- constructRunSugar r p
+					let absremain = foldr (\(STTNode (STAtom name),pos) ep -> (SSLambda name ep,pos)) (e2,p2) names_node
+					return (SSApply (e1,p1) absremain,p0)
 		constructRunSugar ((_,p1):r) p = SFail "invalid syntax in do/run clause" p1
 		constructLetSugar [] p = SFail "empty let clause" p
 		constructLetSugar (h:[]) p = parseSSExp h
