@@ -4,13 +4,11 @@
 (def digitFromInt (+ '0'))
 
 (let signedParse (\f s
-	(s (f s) (\h r
-		((= h '-') (neg (f r))
-			((= h '+') (f r)
-				(f s)
-			)
-		)
-	))
+	(s (f s) (\h r (run
+		(((= h '-') (neg (f r))))
+		(((= h '+') (f r)))
+		(f s)
+	)))
 ))
 (let signedShow (\f s
 	((< s 0) (cons '-' (f (neg s))) (f s))
