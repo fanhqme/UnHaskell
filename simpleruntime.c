@@ -172,13 +172,6 @@ VContext * allocateVContext(VContext * p){
 	}
 }
 
-VContext * newVContext(){  // returns new
-    VContext * p = allocateVContext(NULL);
-    p->prev = NULL;
-    p->val = NULL;
-    return p;
-}
-
 VContext * retainVContext(VContext * p){ // p: stolen    returns: new
     if (p){
         p->refcount++;
@@ -203,11 +196,11 @@ Value * lookUpRef(int ref,VContext * context){  // context: stolen    returns: s
     for (int i=0;i<ref;++i){
         context = context->prev;
     }
-    return context->val;
+	return context->val;
 }
 
 VContext * insertRef(Value * v,VContext * context){ // v: consumed   context: consumed   returns: new
-    VContext * ncontext=newVContext();
+    VContext * ncontext=allocateVContext(NULL);
     ncontext->val=v;
     ncontext->prev=context;
     return ncontext;
@@ -671,22 +664,39 @@ VExp * appendSyscallArg(VExp * exp,Value * x,const char ** error_message,Value *
 	}
 }
 
+void incCounter(){
+	static long count=0;
+	count++;
+	if (!(count&((1<<20)-1)))
+		fprintf(stderr,"count=%ld\n",count);
+}
+
 Value * resolveValue(Value * v){ // v : stolen    returns: stolen
+	//hit count 226492416
+	
 	//v->type must be VALUE_RUNNING
 	Continuation * cont=v->r_cont;
 	if (!cont){
+		//hit count  33554432
+		
 		clearNullContinuation(v);
 	}else if (cont->type==CONT_EVAL){
+		//hit count 134217728
+		
 		//v->r_exp and v->r_context should be NULL
 		VExp * exp=cont->eval_exp; // stolen
 		VContext * context=cont->eval_context; //stolen
 		if (exp->type<EXP_WHNF){
+			//hit count 2097152
+			
 			setRunningValue(v,
 				retainVExp(exp),
 				retainVContext(context)
 			);
 			popContinuation(v);
 		}if (exp->type==EXP_REF){
+			//hit count 83886080
+			
 			int ref=exp->ref_val;
 			Value * ref_val=lookUpRef(ref,context); // stolen
 			if (ref_val->type==VALUE_RESOLVED){
@@ -696,46 +706,70 @@ Value * resolveValue(Value * v){ // v : stolen    returns: stolen
 				);
 				popContinuation(v);
 			}else if(ref_val->type==VALUE_EXCEPTION){
-				//In place modify. Need to handle v->r_exp, v->r_context, v->r_cont
 				setExceptionValue(v,ref_val->message);
 			}else{
+				//hit count 29360128
+				
 				return ref_val;
 			}
 		}else if (exp->type==EXP_APPLY){
-			//In place modify. Need to handle v->r_exp, v->r_context, v->r_cont
+			//hit count 48234496
+			
 			VExp * f=retainVExp(exp->ap_f); //new
 			VExp * x=retainVExp(exp->ap_x); //new
+			VContext * xcontext=retainVContext(context);
 			VContext * fcontext=retainVContext(context);
 
-			Value * nvx=newRunningValue(NULL,NULL);
-			pushEvalContinuation(nvx,
-				x, //x consumed here
-				retainVContext(context) //new
-			);
+			Value * nvx;
+			if (x->type < EXP_WHNF){
+				nvx = newResolvedValue(x,xcontext);
+			}else if(x->type == EXP_REF){
+				nvx=retainValue(lookUpRef(x->ref_val,xcontext));
+				releaseVExp(x);
+				releaseVContext(xcontext);
+			}else{
+				//hit count 41943040
+				nvx=newRunningValue(NULL,NULL);
+				pushEvalContinuation(nvx,
+					x, //x consumed here
+					xcontext //new
+				);
+			}
+
 			setRunningValue(v,NULL,NULL);
 			popContinuation(v);
 			pushApplyContinuation(v,nvx);
 			pushEvalContinuation(v,f,fcontext);
 		}
 	}else if (cont->type==CONT_APPLY){
+		//hitcount 50331648
+		
 		VExp * exp=v->r_exp; //stolen
 		VContext * context=v->r_context; //stolen
 		Value * x = cont->ap_x; //stolen
 		if (exp->type==EXP_NUM){
-			//In place modify. Need to handle v->r_exp, v->r_context, v->r_cont
 			setExceptionValue(v,
 				"cannot use numeric value as function"
 			);
 		}else if (exp->type==EXP_ABS){
+			//hit count 40894464
+			
             VContext * ncontext=insertRef(
 				retainValue(x),
 				retainVContext(context)
 			); //new 
 			VExp * nexp=retainVExp(exp->abs_val);
-			setRunningValue(v,NULL,NULL);
-			popContinuation(v);
-			pushEvalContinuation(v,nexp,ncontext);
+			if (nexp->type < EXP_WHNF){
+				setRunningValue(v,nexp,ncontext);
+				popContinuation(v);
+			}else{
+				setRunningValue(v,NULL,NULL);
+				popContinuation(v);
+				pushEvalContinuation(v,nexp,ncontext);
+			}
 		}else if (exp->type==EXP_NUMFUNC){
+			//hit count 4194304
+
 			if (x->type!=VALUE_RESOLVED && x->type!=VALUE_EXCEPTION){
 				return x;
 			}
@@ -777,6 +811,8 @@ Value * resolveValue(Value * v){ // v : stolen    returns: stolen
 				popContinuation(v);
 			}
 		}else if (exp->type==EXP_NUMFUNC1){
+			//hit count 6291456
+			
 			if (x->type!=VALUE_RESOLVED && x->type!=VALUE_EXCEPTION){
 				return x;
 			}
