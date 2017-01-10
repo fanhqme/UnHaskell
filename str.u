@@ -47,7 +47,7 @@
 		)) prec mval))
 		(++ (uitoa ival) ((> prec 0) (cons '.' mpart) empty))
 	)))
-	(signedShow ftoaP)
+	(signedShow (. ftoaP (+ (iterateN prec (* 0.1) 0.5))))
 )))
 (def ftoa (ftoaPrecision 6))
 (def splitStr (\d s (let

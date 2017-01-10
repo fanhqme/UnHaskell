@@ -11,6 +11,12 @@
 (def . (\f g x (f (g x))))
 (def apply id)
 (def feed (\x y (y x)))
+(def flip (\f y x (f x y)))
+(def iterateN (recur (\g i f x
+	((<= i 0) x
+		(f (g (- i 1) f x))
+	)
+)))
 
 ; the Bool protocol:   (b  true_value  false_value)
 (def True (\x y x))
@@ -77,7 +83,13 @@
 		)
 	))
 )))))
-
+(def zipWith (\f (recur (\g a b
+	(a empty (\ha ra
+		(b empty (\hb rb
+			(cons (f ha hb) (g ra rb))
+		))
+	))
+))))
 
 ; the Maybe protocol:  (m nothing_value (\v just_value))
 (def nothing True)
@@ -102,3 +114,10 @@
 (def ReadWriteMode 3)
 (def stdin 0)
 (def stdout 1)
+
+; run macros
+(def ^list (\l f (foldl apply f l)))
+
+(def head1 (\e l f (l e (\h1 r1 (f h1 r1)))))
+(def head2 (\e l f (l e (\h1 r1 (r1 e (\h2 r2 (f h1 h2 r2)))))))
+(def head3 (\e l f (l e (\h1 r1 (r1 e (\h2 r2 (r2 e (\h3 r3 (f h1 h2 h3 r3)))))))))
