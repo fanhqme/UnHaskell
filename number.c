@@ -25,81 +25,45 @@ Number doubleNumber(double a){
 Number addNumber(Number a,Number b){
 	if (a.type==NUM_INT){
 		if (b.type==NUM_INT){
-			Number c;
-			c.type=NUM_INT;
-			c.int_val=a.int_val+b.int_val;
-			return c;
+			return intNumber(a.int_val+b.int_val);
 		}else{ //NUM_DOUBLE
-			Number c;
-			c.type=NUM_DOUBLE;
-			c.double_val=a.int_val+b.double_val;
-			return c;
+			return doubleNumber(a.int_val+b.double_val);
 		}
 	}else{ //NUM_DOUBLE
 		if (b.type==NUM_INT){
-			Number c;
-			c.type=NUM_DOUBLE;
-			c.int_val=a.double_val+b.int_val;
-			return c;
+			return doubleNumber(a.double_val+b.int_val);
 		}else{ //NUM_DOUBLE
-			Number c;
-			c.type=NUM_DOUBLE;
-			c.double_val=a.double_val+b.double_val;
-			return c;
+			return doubleNumber(a.double_val+b.double_val);
 		}
 	}
 }
 Number subNumber(Number a,Number b){
 	if (a.type==NUM_INT){
 		if (b.type==NUM_INT){
-			Number c;
-			c.type=NUM_INT;
-			c.int_val=a.int_val-b.int_val;
-			return c;
+			return intNumber(a.int_val-b.int_val);
 		}else{ //NUM_DOUBLE
-			Number c;
-			c.type=NUM_DOUBLE;
-			c.double_val=a.int_val-b.double_val;
-			return c;
+			return doubleNumber(a.int_val-b.double_val);
 		}
 	}else{ //NUM_DOUBLE
 		if (b.type==NUM_INT){
-			Number c;
-			c.type=NUM_DOUBLE;
-			c.int_val=a.double_val-b.int_val;
-			return c;
+			return doubleNumber(a.double_val-b.int_val);
 		}else{ //NUM_DOUBLE
-			Number c;
-			c.type=NUM_DOUBLE;
-			c.double_val=a.double_val-b.double_val;
-			return c;
+			return doubleNumber(a.double_val-b.double_val);
 		}
 	}
 }
 Number mulNumber(Number a,Number b){
 	if (a.type==NUM_INT){
 		if (b.type==NUM_INT){
-			Number c;
-			c.type=NUM_INT;
-			c.int_val=a.int_val*b.int_val;
-			return c;
+			return intNumber(a.int_val*b.int_val);
 		}else{ //NUM_DOUBLE
-			Number c;
-			c.type=NUM_DOUBLE;
-			c.double_val=a.int_val*b.double_val;
-			return c;
+			return doubleNumber(a.int_val*b.double_val);
 		}
 	}else{ //NUM_DOUBLE
 		if (b.type==NUM_INT){
-			Number c;
-			c.type=NUM_DOUBLE;
-			c.int_val=a.double_val*b.int_val;
-			return c;
+			return doubleNumber(a.double_val*b.int_val);
 		}else{ //NUM_DOUBLE
-			Number c;
-			c.type=NUM_DOUBLE;
-			c.double_val=a.double_val*b.double_val;
-			return c;
+			return doubleNumber(a.double_val*b.double_val);
 		}
 	}
 }
@@ -127,7 +91,7 @@ Number divNumber(Number a,Number b,const char ** msg){
 				msg[0]="divided by zero";
 			}else{
 				c.type=NUM_DOUBLE;
-				c.int_val=a.double_val/b.int_val;
+				c.double_val=a.double_val/b.int_val;
 			}
 			return c;
 		}else{ //NUM_DOUBLE
