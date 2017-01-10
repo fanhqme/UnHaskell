@@ -14,8 +14,8 @@
 	(g remain return)
 )))))
 (def matMul (\a b (let
-	(vecMatMul (\v m (foldr1 (zipWith +) id 0 (zipWith (\l a (map (* a) l)) v m))))
-	(map (vecMatMul b) a)
+	(mulVec (. (foldr1 (zipWith +) id 0) (zipWith (\l a (map (* a) l)) b)))
+	(map mulVec a)
 )))
 (run
 	(line readLine)

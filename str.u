@@ -5,8 +5,8 @@
 
 (let signedParse (\f s
 	(s (f s) (\h r (run
-		(((= h '-') (neg (f r))))
-		(((= h '+') (f r)))
+		( ((= h '-') (neg (f r))))
+		( ((= h '+') (f r)))
 		(f s)
 	)))
 ))
@@ -50,13 +50,13 @@
 	(signedShow (. ftoaP (+ (iterateN prec (* 0.1) 0.5))))
 )))
 (def ftoa (ftoaPrecision 6))
-(def splitStr (\d s (let
+(def splitStr (\d (let
 	(appendHead (\a l (l (list (list a)) (\h r (cons (cons a h) r)))))
 	(foldr (\a r
 		((= a d) (cons empty r)
 			(appendHead a r)
 		)
-	) empty s)
+	) empty)
 )))
 (def rstrip (foldr (\a r (or (not (isSpace a)) (not (null r)) (cons a r) r)) empty))
 (def cmpStr (cmpList <))
