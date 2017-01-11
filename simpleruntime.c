@@ -286,68 +286,72 @@ const char * syscallNames(SyscallType st){
 	return names[st];
 }
 
-void displayNumber(Number a){
+void displayNumber(FILE * fout,Number a){
 	if (a.type==NUM_INT){
-		printf("%d",a.int_val);
+		fprintf(fout,"%d",a.int_val);
 	}else{
-		printf("%f",a.double_val);
+		fprintf(fout,"%f",a.double_val);
 	}
 }
 
-void displayExpRecursive(VExp * e,int level){ // e : stolen
+void displayExpRecursive(FILE * fout,VExp * e,int level){ // e : stolen
     if (e->type==EXP_NUM) {
-		displayNumber(e->num_val);
+		displayNumber(fout,e->num_val);
     }else if (e->type==EXP_ABS){
-		printf("(\\v%d ",level);
-		displayExpRecursive(e->abs_val,level+1);
-		printf(")");
+		fprintf(fout,"(\\v%d ",level);
+		displayExpRecursive(fout,e->abs_val,level+1);
+		fprintf(fout,")");
 	}else if (e->type==EXP_REF){
-		printf("v%d",level-1-e->ref_val);
+		fprintf(fout,"v%d",level-1-e->ref_val);
 	}else if (e->type==EXP_APPLY){
-		printf("(");
-		displayExpRecursive(e->ap_f,level);
-		printf(" ");
-		displayExpRecursive(e->ap_x,level);
-		printf(")");
+		fprintf(fout,"(");
+		displayExpRecursive(fout,e->ap_f,level);
+		fprintf(fout," ");
+		displayExpRecursive(fout,e->ap_x,level);
+		fprintf(fout,")");
 	}else if (e->type==EXP_NUMFUNC){
-		printf("%s",funcNames(e->func_type));
+		fprintf(fout,"%s",funcNames(e->func_type));
 	}else if (e->type==EXP_NUMFUNC1){
-		printf("(%s ",funcNames(e->func1_type));
-		displayNumber(e->func1_opa);
-		printf(")");
+		fprintf(fout,"(%s ",funcNames(e->func1_type));
+		displayNumber(fout,e->func1_opa);
+		fprintf(fout,")");
 	}else if (e->type==EXP_INTLIST){
-		printf("(makeIntList");
+		fprintf(fout,"(makeIntList");
 		for (IntList * p=e->intlist_val;p;p=p->next){
-			printf(" %d",p->val);
+			fprintf(fout," %d",p->val);
 		}
-		printf(")");
+		fprintf(fout,")");
 	}else if (e->type==EXP_SYSCALL){
-		printf("(%s",syscallNames(e->sys_type));
-		int required=syscall_arginfo[e->sys_type][0];
-		if (e->sys_nbind>=1 && required>1){
-			int atype=syscall_arginfo[e->sys_type][1];
-			if (atype==0){
-				printf(" %d",e->sys_arg1.int_val);
-			}else{
-				printf(" (makeIntList");
-				for (IntList * p=e->sys_arg1.intlist_val;p;p=p->next){
-					printf(" %d",p->val);
+		if (e->sys_nbind==0){
+			fprintf(fout,"%s",syscallNames(e->sys_type));
+		}else{
+			fprintf(fout,"(%s",syscallNames(e->sys_type));
+			int required=syscall_arginfo[e->sys_type][0];
+			if (e->sys_nbind>=1 && required>1){
+				int atype=syscall_arginfo[e->sys_type][1];
+				if (atype==0){
+					fprintf(fout," %d",e->sys_arg1.int_val);
+				}else{
+					fprintf(fout," (makeIntList");
+					for (IntList * p=e->sys_arg1.intlist_val;p;p=p->next){
+						fprintf(fout," %d",p->val);
+					}
+					fprintf(fout,")");
 				}
-				printf(")");
 			}
+			if (e->sys_nbind>=2 && required>2){
+				fprintf(fout," %d",e->sys_arg2);
+			}
+			if (e->sys_nbind>=1 && syscall_arginfo[e->sys_type][e->sys_nbind]==2){
+				fprintf(fout," ...");
+			}
+			fprintf(fout,")");
 		}
-		if (e->sys_nbind>=2 && required>2){
-			printf(" %d",e->sys_arg2);
-		}
-		if (e->sys_nbind>=1 && syscall_arginfo[e->sys_type][e->sys_nbind]==2){
-			printf(" ...");
-		}
-		printf(")");
 	}
 }
 
-void displayExp(VExp * e){  // e: stolen
-	displayExpRecursive(e,0);
+void displayExp(FILE * fout,VExp * e){  // e: stolen
+	displayExpRecursive(fout,e,0);
 }
 
 VExp * allocateVExp(VExp * p){
@@ -664,6 +668,29 @@ VExp * appendSyscallArg(VExp * exp,Value * x,const char ** error_message,Value *
 	}
 }
 
+VExp * constructBoolExp(bool v){ //returns : new
+	static VExp * p_true=NULL,*p_false=NULL;
+	if (v){
+		if (!p_true){
+			p_true=newVExpAbs(
+				newVExpAbs(
+					newVExpRef(1)
+				)
+			);
+		}
+		return retainVExp(p_true);
+	}else{
+		if (!p_false){
+			p_false=newVExpAbs(
+				newVExpAbs(
+					newVExpRef(0)
+				)
+			);
+		}
+		return retainVExp(p_false);
+	}
+}
+
 void incCounter(){
 	static long count=0,unit=1<<18;
 	count++;
@@ -861,19 +888,7 @@ Value * resolveValue(Value * v){ // v : stolen    returns: stolen
 				}else{
 					VExp * nexp=NULL;
 					if (is_bool){
-						int ref;
-						if (result_bool){
-							ref=1;
-						}else{
-							ref=0;
-						}
-						nexp=newVExpAbs(
-							newVExpAbs(
-								newVExpRef(
-									ref
-								)
-							)
-						);
+						nexp=constructBoolExp(result_bool);
 					}else{
 						nexp=newVExpNum(
 							result
@@ -968,7 +983,7 @@ int executeValue(Value * v,int argc,char ** args){ // v: consumed
 			break;
 		}
 		if (v->exp->type!=EXP_SYSCALL){
-			displayExp(v->exp);
+			displayExp(stdout,v->exp);
 			puts("");
 			exitcode=0;
 			break;
