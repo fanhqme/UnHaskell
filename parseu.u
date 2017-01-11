@@ -1,0 +1,39 @@
+(import* io)
+(import* str)
+; SPosition (Int,Int)
+(def SPosition ^2)
+; SError (String,SPosition)
+(def SError ^2)
+(let showSPosition (showPair showInt showInt))
+(let showPositionedChar (showPair showCharL showSPosition))
+(let showListPositionedChar (showList showPositionedChar))
+(def annotatePositions (\content
+	(zip content (scanl
+		(\l0c0 c (l0c0 (\l0 c0
+			((= c '\n') (pair (+ 1 l0) 0)
+				(pair l0 (+ 1 c0)))
+		))) (SPosition 0 0) content)
+	)
+))
+(def dropWhiteSpace (recur (\self (\l (run    ; either SError or ListPositionedChar
+	(aap ar (l (@1_2 empty)))
+	(a ap aap)
+	( ((isSpace a) (self ar)))
+	( ((= a ';') (self (dropWhile (. (/= '\n') fst) ar))))
+	(@1_2 l)
+)))))
+
+(run
+	(let inp "   ;haha\n   (def a 1)\n(+ a 2)")
+	(let annotated (annotatePositions inp))
+	(_ (putStrLn (showListPositionedChar annotated "")))
+	(let onSError (feed (\msg pos (run
+		(_ (putStr msg))
+		(_ (putStr " at "))
+		(_ (putStrLn (showSPosition pos "")))
+		(exit 1)
+	))))
+	(chopped (dropWhiteSpace annotated onSError))
+	(_ (putStrLn (showListPositionedChar chopped "")))
+	(exit 0)
+)

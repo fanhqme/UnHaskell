@@ -6,7 +6,7 @@
 (def id (\x x))
 (def recur (\f ((\x (f (x x))) (\x (f (x x))))))
 (def print id)
-(def die (recur id))  ; this makes the program runs forever
+(def die (recur id))  ; this makes the program run forever
 (def const K)
 (def . (\f g x (f (g x))))
 (def apply id)
@@ -55,6 +55,7 @@
 (def ++ (\a b (foldr (\x y (cons x y)) b a)))
 (def join (\sep (foldr1 (\x y (++ x (++ sep y))) id empty)))
 (def concat (foldr ++ empty))
+(def intersperse (\sep (foldr1 (\x y (cons x (cons sep y))) (\x (list x)) empty)))
 (def sum (foldl + 0))
 (def map (\f (foldr (\h r (cons (f h) r)) empty)))
 (def cmpList (\cmp (recur (\f (\l1 l2
@@ -90,6 +91,12 @@
 		))
 	))
 ))))
+(def zip (zipWith pair))
+(def scanl (\f (recur (\g x0 l
+	(l (list x0) (\h r
+		(cons x0 (g (f x0 h) r))
+	))
+))))
 
 ; the Maybe protocol:  (m nothing_value (\v just_value))
 (def nothing True)
@@ -117,7 +124,10 @@
 
 ; run macros
 (def ^list (\l f (foldl apply f l)))
+(def ^2 (\e c l (l e c)))
+(def ^3 (\a b c f (f a b c)))
+(def ^4 (\a b c d f (f a b c d)))
 
-(def head1 (\e l f (l e (\h1 r1 (f h1 r1)))))
-(def head2 (\e l f (l e (\h1 r1 (r1 e (\h2 r2 (f h1 h2 r2)))))))
-(def head3 (\e l f (l e (\h1 r1 (r1 e (\h2 r2 (r2 e (\h3 r3 (f h1 h2 h3 r3)))))))))
+(def @0_1 (\x f (f x)))
+(def @0_2 (\x f g (f x)))
+(def @1_2 (\x f g (g x)))
