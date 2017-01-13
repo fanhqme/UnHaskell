@@ -1,0 +1,6 @@
+; Map key value :: key -> e -> value
+(def emtpyMap (\key e e))
+(def insertMap (\leA key value l (\a
+	((or (leA key a) (leA a key)) (l a) (K value))
+)))
+(def lookUpMap (\leA key l e (l key e)))
