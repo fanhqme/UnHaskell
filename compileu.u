@@ -1,0 +1,82 @@
+(import* str)
+(import* lexpru)
+(import* mapu)
+
+; Dict b :: Map String b
+(let emptyDict emptyMap)
+(let insertDict (insertMap cmpStr))
+(let lookUpDict (lookUpMap cmpStr))
+
+; compileToC :: LExpr -> [Char]
+
+(def compileToC (\l (let
+	(header "typedef struct VExp VExp;
+VExp * makeBuiltin(const char* func_name);
+VExp * makeInt(int a);
+VExp * makeDouble(double a);
+VExp * makeAbs(VExp* abs_val);
+VExp * makeRef(int ref_val);
+VExp * makeApply(VExp * f,VExp * x);
+int executeVExp(VExp * exp,int argc,char ** argv);
+int main(int argc,char ** argv){
+return executeVExp(")
+	(footer ",argc,argv);\n}\n")
+ 	; compileToCS :: LExpr -> Map.Map [Char] Int -> Int -> ShowS
+	(compileToCS (recur (\self (\l names curlevel
+		(l
+			(\v (showString (++ "makeInt(" (++ (itoa v) ")")))) ;LInt v
+			(\v (showString (++ "makeDouble(" (++ (ftoaPrecision 14 v) ")")))) ;LDouble v
+			(\key ((lookUpDict key names) ; LRef key
+				(showString (++ "makeBuiltin(\"" (++ key "\")")))
+				(\val (showString (++ "makeRef(" (++ (itoa (- (- curlevel val) 1)) ")"))))
+			))
+			(\key l2 (. (showString "makeAbs(\n") (. (self l2 (insertDict key curlevel names) (+ curlevel 1)) (showString ")")))) ; LAbs key body
+			(\l1 l2 (. (showString "makeApply(\n") (. (self l1 names curlevel) (. (showString ",\n") (. (self l2 names curlevel) (showString ")")))))) ; LApply l1 l2
+		)
+	))))
+	(++ header (compileToCS l emptyDict 0 footer))
+)))
+
+; compileToLLVM :: LExpr -> [Char]
+(def compileToLLVM (\l (run
+	(let header (showString "%struct.VExp = type opaque\n"))
+	(let main_head (showString "define i32 @main(i32 %argc, i8** %argv) #0 {\n  %1 = alloca i32, align 4\n  store i32 0, i32* %1\n"))
+	(let footer (showString "declare i32 @executeVExp(%struct.VExp*, i32, i8**)
+declare %struct.VExp* @makeApply(%struct.VExp*, %struct.VExp*)
+declare %struct.VExp* @makeBuiltin(i8*) #1
+declare %struct.VExp* @makeAbs(%struct.VExp*) #1
+declare %struct.VExp* @makeRef(i32) #1
+declare %struct.VExp* @makeDouble(double) #1
+declare %struct.VExp* @makeInt(i32) #1
+attributes #0 = { nounwind uwtable \"less-precise-fpmad\"=\"false\" \"no-frame-pointer-elim\"=\"true\" \"no-frame-pointer-elim-non-leaf\" \"no-infs-fp-math\"=\"false\" \"no-nans-fp-math\"=\"false\" \"stack-protector-buffer-size\"=\"8\" \"unsafe-fp-math\"=\"false\" \"use-soft-float\"=\"false\" }
+attributes #1 = { \"less-precise-fpmad\"=\"false\" \"no-frame-pointer-elim\"=\"true\" \"no-frame-pointer-elim-non-leaf\" \"no-infs-fp-math\"=\"false\" \"no-nans-fp-math\"=\"false\" \"stack-protector-buffer-size\"=\"8\" \"unsafe-fp-math\"=\"false\" \"use-soft-float\"=\"false\" }\n"
+	))
+	(let strLine (\s s_id (showString (++ "@.str" (++ (itoa s_id) (++ " = private unnamed_addr constant [" (++ (itoa (+ 1 (length s))) (++ " x i8] c\"" (++ s "\\00\", align 1\n")))))))))
+	; constructL :: LExpr -> Int -> Map.Map [Char] Int -> Int -> Map.Map [Char] Int -> Int -> ShowS -> (Int,Map.Map [Char] Int,Int,ShowS,ShowS,Int)
+	(let constructL (recur (\self l curlevel localdefs cur_id strdefs strdefslen strdefsblock
+		(l
+			(\v (^6 cur_id strdefs strdefslen strdefsblock (showString (++ "  %" (++ (itoa cur_id) (++ " = call %struct.VExp* @makeInt(i32 " (++ (itoa v) ")\n"))))) (+ cur_id 1))) ; LInt v
+			(\v (^6 cur_id strdefs strdefslen strdefsblock (showString (++ "  %" (++ (itoa cur_id) (++ " = call %struct.VExp* @makeDouble(double " (++ (ftoaPrecision 14 v) ")\n"))))) (+ cur_id 1))) ; LDouble v
+			(\key ((lookUpDict key localdefs) ; LRef key
+				(run
+					(new_strdefs new_strdefslen new_strdefsblock strid (lookUpDict key strdefs (^4 (insertDict key strdefslen strdefs) (+ strdefslen 1) (. strdefsblock (strLine key strdefslen)) strdefslen) (\val (^4 strdefs strdefslen strdefsblock val))))
+					(^6 cur_id new_strdefs new_strdefslen new_strdefsblock (showString (++ "  %" (++ (itoa cur_id) (++ " = call %struct.VExp* @makeBuiltin(i8* getelementptr inbounds ([" (++ (itoa (+ (length key) 1)) (++ " x i8]* @.str" (++ (itoa strid) ", i32 0, i32 0))\n"))))))) (+ cur_id 1))
+				)
+				(\val (^6 cur_id strdefs strdefslen strdefsblock (showString (++ "  %" (++ (itoa cur_id) (++ " = call %struct.VExp* @makeRef(i32 " (++ (itoa (- (- curlevel val) 1)) ")\n"))))) (+ cur_id 1)))
+			))
+			(\key body (run ; LAbs key body
+				(body_id new_strdefs new_strdefslen new_strdefsblock bodystr new_id (self body (+ curlevel 1) (insertDict key curlevel localdefs) cur_id strdefs strdefslen strdefsblock))
+				(^6 new_id new_strdefs new_strdefslen new_strdefsblock (. bodystr (showString (++ "  %" (++ (itoa new_id) (++ " = call %struct.VExp* @makeAbs(%struct.VExp* %" (++ (itoa body_id) ")\n")))))) (+ new_id 1))
+			))
+			(\l1 l2 (run ; LApply l1 l2
+				(l1_id strdefs_1 strdefslen_1 strdefsblock_1 s1 id_1 (self l1 curlevel localdefs cur_id strdefs strdefslen strdefsblock))
+				(l2_id strdefs_2 strdefslen_2 strdefsblock_2 s2 id_2 (self l2 curlevel localdefs id_1 strdefs_1 strdefslen_1 strdefsblock_1))
+				(^6 id_2 strdefs_2 strdefslen_2 strdefsblock_2 (. s1 (. s2 (showString (++ "  %" (++ (itoa id_2) (++ " = call %struct.VExp* @makeApply(%struct.VExp* %" (++ (itoa l1_id) (++ ", %struct.VExp* %" (++ (itoa l2_id) ")\n"))))))))) (+ id_2 1))
+				;(^6 cur_id strdefs strdefslen strdefsblock s2 cur_id)
+			))
+		)
+	)))
+	(expid final_strdefs final_strdefslen final_strdefsblock mainblock terminate_id (constructL l 0 emptyDict 2 emptyDict 0 id))
+	(let funcbody (. mainblock (showString (++ "  %" (++ (itoa terminate_id) (++ " = call i32 @executeVExp(%struct.VExp* %" (++ (itoa expid) (++ ", i32 %argc, i8** %argv)\n  ret i32 %" (++ (itoa terminate_id)  "\n}\n")))))))))
+	(header (final_strdefsblock (main_head (funcbody (footer "")))))
+)))
