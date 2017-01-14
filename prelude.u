@@ -131,3 +131,17 @@
 (def @0_1 (\x f (f x)))
 (def @0_2 (\x f g (f x)))
 (def @1_2 (\x f g (g x)))
+
+(def @0_7 (\x f0 f1 f2 f3 f4 f5 f6 (f0 x)))
+(def @1_7 (\x f0 f1 f2 f3 f4 f5 f6 (f1 x)))
+(def @2_7 (\x f0 f1 f2 f3 f4 f5 f6 (f2 x)))
+(def @3_7 (\x f0 f1 f2 f3 f4 f5 f6 (f3 x)))
+(def @4_7 (\x f0 f1 f2 f3 f4 f5 f6 (f4 x)))
+(def @5_7 (\x f0 f1 f2 f3 f4 f5 f6 (f5 x)))
+(def @6_7 (\x f0 f1 f2 f3 f4 f5 f6 (f6 x)))
+
+(def head (\l (l nothing (\h t h))))
+(def tail (\l (l nothing (\h t t))))
+(def isDigit (\x (and (>= x '0') (<= x '9'))))
+(def isSpace (\x (or (or (= x ' ') (= x '\n')) (= x '\t'))))
+(def elem (\x l (foldl or False (map (= x) l))))
