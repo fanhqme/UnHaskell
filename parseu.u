@@ -47,6 +47,23 @@
 	(show' t 0 (SPosition 0 0))
 )))
 
+; data SSExp = SSInt Int | SSDouble Double | SSLambda [Char] (SSExp,SPosition) | SSRef [Char] | SSApply (SSExp,SPosition) (SSExp,SPosition)
+(def SSInt (\a f1 f2 f3 f4 f5 (f1 a)))
+(def SSDouble (\a f1 f2 f3 f4 f5 (f2 a)))
+(def SSLambda (\a f1 f2 f3 f4 f5 (f3 a)))
+(def SSRef (\a f1 f2 f3 f4 f5 (f4 a)))
+(def SSApply (\a f1 f2 f3 f4 f5 (f5 a)))
+(def SVLocal @0_2)
+(def SVGlobal @1_2)
+(def SIQualified @0_2)
+(def SIUnqualified @1_2)
+;data SSImport = SSImport [Char] SImportMode deriving Show
+(def SSImport ^2)
+;data SSDef = SSDef [Char] (SSExp,SPosition) SVisibility deriving Show
+(def SSDef ^3)
+;data SSModule = SSModule [(SSImport,SPosition)] [(SSDef,SPosition)] deriving Show
+(def SSModule ^2)
+
 (def annotatePositions (\content
 	(zip content (scanl
 		(\l0c0 c (l0c0 (\l0 c0

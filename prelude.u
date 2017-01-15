@@ -141,3 +141,6 @@
 (def !0_1 (\a a))
 (def !0_2 (\a b a))
 (def !1_2 (\a b b))
+(def !0_3 (\a b c a))
+(def !1_3 (\a b c b))
+(def !2_3 (\a b c c))
