@@ -3,7 +3,7 @@
 (let readIfF (\handle condition
 	(do
 		(c (peekCharF handle))
-		(if (and (/= c -1) (condition c))
+		(if (and (>= c 0) (condition c))
 			(run
 				(_ (getCharF handle))  ; must be c
 				(return (just c))

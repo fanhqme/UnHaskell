@@ -1,41 +1,51 @@
 U.hs
 =============
 
-U.hs is a LISP syntax [Unlambda](https://en.wikipedia.org/wiki/Unlambda) implementation written in Haskell. Started initially as a programming homework. Now development still in progress.
-The language takes the idea from Unlambda:
+U.hs is a weakly typed pure functional lazy evaluating toy language based on untyped lambda calculus. It features a very simply type system (which borrows from [Unlambda](https://en.wikipedia.org/wiki/Unlambda)):
+```
+function :: function -> function
+```
+Hence, there is essentially no type at all, so any program type-checks. However, important modifications are made to make the language marginally useful:
 
-* Everything is a function. Functions are things that map functions to functions (and hence have no type at all).
+1. Lambda is introduced back, for the sake of any sane soul. A Lisp-style syntax is used for function application.
+2. Built-in callback-based IO mechanism to let the program say hello world. Also, there are built-in numeric values.
+3. Module system, standard library and syntax sugar.
 
-However, important language sugars and modifications are added:
+The purpose of U.hs is to let those annoyed by Haskell's type system get a look and feel of how life is like without it. You can use the power of untyped lambda calculus to (re-)invent:
 
-1. Lambda is introduced back, for the sake of any sane soul. A Lisp-style syntax is used. So I = ((S K) K).
-2. Pure functional design, with referential transparency, lazy evaluation and CPS IO operation. There is no [strictness](https://wiki.haskell.org/Performance/Strictness) nor [delayed](http://www.madore.org/~david/programs/unlambda/#delay) application.
-3. Module system, standard library and syntax sugar for CPS.
+* Pairs, bools, lists and various fundamental data types
+* Pattern matching, guard statement
+* Monadic programming
+
+And along the way, you will begin to appreciate how good the world was.
 
 Getting Started
 ----------------
 
-U.hs uses file extension .u. Example of helloworld.u:
+U.hs uses file extension .u. Example of aplusb.u:
 ```
 (import* io)
-(def main (run
-	(_ (putStrLn "hello world"))
+(import* str)
+(run
+	(line readLine)
+	(let s (sum (map atoi (splitStr ' ' (rstrip line)))))
+	(_ (putStrLn (itoa s)))
 	(exit 0)
-	)
 )
 ```
-The "run" statement is syntax sugar for chaining callbacks: (run (a b) (c d) e) = (b (\\a (d (\\c e)))). All io functions use callback to get the return value. Exit takes no callback (and hence stops execution).
+The "run" statement is syntax sugar for chaining callbacks: (run (a b) (c d) e) = (b (\\a (d (\\c e)))). 
 
 To interpretively run the program call urun
 ```
 $ghc urun.hs
-$./urun helloworld.u
-hello world
+$./urun aplusb.u
+1 2
+3
 ```
 
 urun is also an REPL interpreter
 ```
-$runghc urepl.hs
+$./urun
 ; type :q to quit, :? for help
 prelude>(+ 3 1)
 4
@@ -45,9 +55,19 @@ ha
 0
 >:q
 ```
-Note that, "print" is just the identity function (\x x). When using it as a callback, the result (now the return code of putStrLn) is printed with execution terminated.
+Note that, "print" is just the identity function (\\x x).
+
+There is also a way to compile .u source code to binary:
+```
+$ghc ucomp.hs
+$./ucomp aplusb.u
+$./aplusb
+1 2
+3 
+```
 
 Language Specification
 ----------------
+There is a (Chinese) tutorial called "report.pdf" in report/report.pdf.
 
-TODO
+More documentation will be written when the language reaches a relatively stable state.
