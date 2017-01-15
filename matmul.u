@@ -9,7 +9,7 @@
 )))))
 (def writeMat (recur (\g (\l (do
 	(row remain (l (return 0)))
-	(retval (putStrLn (join " " (map ftoa row))))
+	(retval (putStrLn (join " " (map (ftoaPrecision 6) row))))
 	( ((/= retval 0) (return retval)))
 	(g remain return)
 )))))

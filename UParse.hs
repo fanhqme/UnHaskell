@@ -94,11 +94,11 @@ splitStrLiteral ar ap = case ar of
 	[] -> SFail "unmatched \"" ap
 splitCharLiteral :: [(Char,SPosition)] -> SPosition -> SMayFail ((SToken,SPosition),[(Char,SPosition)])
 splitCharLiteral ar ap = case ar of
-	('\'',_):[] -> SFail "empty ''" ap
+	('\'',_):_ -> SFail "empty ''" ap
 	('\\',_):arr -> do
 		(c,arrr) <- splitChrSpecial arr ap
 		case arrr of
-			('\'',_):arrr -> SSucc (((STInt (ord c)),ap),arrr)
+			('\'',_):arrrr -> SSucc (((STInt (ord c)),ap),arrrr)
 			_ -> SFail "unmatched \'" ap
 	(c0,_):('\'',_):arr -> SSucc (((STInt (ord c0)),ap),arr)
 	_ -> SFail "unmatched \'" ap

@@ -97,6 +97,10 @@
 		(cons x0 (g (f x0 h) r))
 	))
 ))))
+(def iterate (\f (recur (\g x (cons x (g (f x)))))))
+(def length (recur (\self  l (l 0 (\_ r (+ (self r) 1))))))
+(def any (\p (recur (\f (\l (l False (\h r ((p h) True (f r)))))))))
+(def all (\p (recur (\f (\l (l True (\h r ((p h) (f r) False))))))))
 
 ; the Maybe protocol:  (m nothing_value (\v just_value))
 (def nothing True)
@@ -127,7 +131,13 @@
 (def ^2 (\e c l (l e c)))
 (def ^3 (\a b c f (f a b c)))
 (def ^4 (\a b c d f (f a b c d)))
+(def ^5 (\a b c d e f (f a b c d e)))
+(def ^6 (\a b c d e f g (g a b c d e f)))
 
 (def @0_1 (\x f (f x)))
 (def @0_2 (\x f g (f x)))
 (def @1_2 (\x f g (g x)))
+
+(def !0_1 (\a a))
+(def !0_2 (\a b a))
+(def !1_2 (\a b b))

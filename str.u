@@ -34,6 +34,24 @@
 	)))))
 	(signedParse atofP)
 ))
+(def ftoaMaxPrecision (\prec (let
+	(ftoaP (\s (let
+		(ival (toInt s))
+		(mval (- s ival))
+		(mpart (recur (\f (\togo cur
+			((<= togo 0) empty (let
+				(c10 (* cur 10))
+				(d (toInt c10))
+				(remain (f (- togo 1) (- c10 d)))
+				((remain False (\h r (r (= h '0') (\_ _ False)))) (list (digitFromInt d))
+					(cons (digitFromInt d) remain)
+				)
+			))
+		)) prec mval))
+		(++ (uitoa ival) ((> prec 0) (cons '.' mpart) empty))
+	)))
+	(signedShow (. ftoaP (+ (iterateN prec (* 0.1) 0.5))))
+)))
 (def ftoaPrecision (\prec (let
 	(ftoaP (\s (let
 		(ival (toInt s))
@@ -49,7 +67,7 @@
 	)))
 	(signedShow (. ftoaP (+ (iterateN prec (* 0.1) 0.5))))
 )))
-(def ftoa (ftoaPrecision 6))
+(def ftoa (ftoaMaxPrecision 14))
 (def splitStr (\d (let
 	(appendHead (\a l (l (list (list a)) (\h r (cons (cons a h) r)))))
 	(foldr (\a r

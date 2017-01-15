@@ -25,7 +25,7 @@ return executeVExp(")
 	(compileToCS (recur (\self (\l names curlevel
 		(l
 			(\v (showString (++ "makeInt(" (++ (itoa v) ")")))) ;LInt v
-			(\v (showString (++ "makeDouble(" (++ (ftoaPrecision 14 v) ")")))) ;LDouble v
+			(\v (showString (++ "makeDouble(" (++ (ftoa v) ")")))) ;LDouble v
 			(\key ((lookUpDict key names) ; LRef key
 				(showString (++ "makeBuiltin(\"" (++ key "\")")))
 				(\val (showString (++ "makeRef(" (++ (itoa (- (- curlevel val) 1)) ")"))))
@@ -56,7 +56,7 @@ attributes #1 = { \"less-precise-fpmad\"=\"false\" \"no-frame-pointer-elim\"=\"t
 	(let constructL (recur (\self l curlevel localdefs cur_id strdefs strdefslen strdefsblock
 		(l
 			(\v (^6 cur_id strdefs strdefslen strdefsblock (showString (++ "  %" (++ (itoa cur_id) (++ " = call %struct.VExp* @makeInt(i32 " (++ (itoa v) ")\n"))))) (+ cur_id 1))) ; LInt v
-			(\v (^6 cur_id strdefs strdefslen strdefsblock (showString (++ "  %" (++ (itoa cur_id) (++ " = call %struct.VExp* @makeDouble(double " (++ (ftoaPrecision 14 v) ")\n"))))) (+ cur_id 1))) ; LDouble v
+			(\v (^6 cur_id strdefs strdefslen strdefsblock (showString (++ "  %" (++ (itoa cur_id) (++ " = call %struct.VExp* @makeDouble(double " (++ (ftoa v) ")\n"))))) (+ cur_id 1))) ; LDouble v
 			(\key ((lookUpDict key localdefs) ; LRef key
 				(run
 					(new_strdefs new_strdefslen new_strdefsblock strid (lookUpDict key strdefs (^4 (insertDict key strdefslen strdefs) (+ strdefslen 1) (. strdefsblock (strLine key strdefslen)) strdefslen) (\val (^4 strdefs strdefslen strdefsblock val))))
