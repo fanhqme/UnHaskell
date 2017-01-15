@@ -369,6 +369,40 @@
 		))))
 		on_error
 	)))))
+	(let constructDoSugar (\r p (run
+		(e1 p1 (,<-SMF (constructRunSugar r p)))
+		(SSucc (pair (SSLambda "return" (pair e1 p1)) p))
+	)))
+	(let constructLetSugar (recur (\self2 (\r p (run
+		(hr rr (r (SFail "empty let clause" p)))
+		(_ _ (rr (self hr)))
+		(thr phr hr)
+		( (run
+			(trees (. (feed id) (caseSTTList thr)))
+			(htrees rtrees (trees id))
+			(e rrtrees (rtrees id))
+			( (. (feed id) (null rrtrees)))
+			(thtrees p0 htrees)
+			(token (. (feed id) (caseSTTNode thtrees)))
+			(name (. (feed id) (caseSTAtom token)))
+			( K)
+			(e1 p1 (,<-SMF (self e)))
+			(e2 p2 (,<-SMF (self2 rr p)))
+			(SSucc (pair (SSApply (pair (SSLambda name (pair e2 p2)) p0) (pair e1 p1)) p0))
+		))
+		(SFail "invalid syntax in let clause" phr)
+	)))))
+	(let constructListSugar (recur (\self2 (\r p (run
+		(hr rr (r (SSucc (pair (SSLambda "f" (pair (SSLambda "g" (pair (SSRef "f") p)) p)) p))))
+		(e1 p1 (,<-SMF (self hr)))
+		(remain p2 (,<-SMF (self2 rr p)))
+		(SSucc (pair (SSLambda "f" (pair (SSLambda "g" (pair (SSApply (pair (SSApply (pair (SSRef "g") p1) (pair e1 p1)) p1) (pair remain p2)) p1)) p1)) p1))
+	)))))
+	(let constructStrSugar (\sp (foldr
+		(\a remain (pair (SSLambda "f" (pair (SSLambda "g" (pair (SSApply (pair (SSApply (pair (SSRef "g") sp) (pair (SSInt a) sp)) sp) remain) sp)) sp)) sp))
+		(pair (SSLambda "f" (pair (SSLambda "g" (pair (SSRef "f") sp)) sp)) sp)
+	)))
+
 	(tree
 		(\token (let ; STTNode
 			(other (SFail "illegal token " sp))
@@ -379,7 +413,7 @@
 				other
 				other
 				other
-				other ; todo: constructStrSugar
+				(\s (SSucc (constructStrSugar sp s)))
 			)
 		))
 		(\trees (run
@@ -390,6 +424,9 @@
 				( (caseSTAtom token (\name (run
 					( ((eqStr name "lambda") (K (constructLambdaSugar rt pht))))
 					( ((eqStr name "run") (K (constructRunSugar rt pht))))
+					( ((eqStr name "do") (K (constructDoSugar rt pht))))
+					( ((eqStr name "let") (K (constructLetSugar rt pht))))
+					( ((eqStr name "list") (K (constructListSugar rt pht))))
 					id
 				))))
 				id
@@ -403,7 +440,7 @@
 
 (run
 	;(let inp " ;haha\n #|lala|# #| papa|# ; pia\n(def a 1)\n(+ a 2)")
-	(fin (open "aplusb.u" ReadMode))
+	(fin (open "testcomp.u" ReadMode))
 	(inp (readContentF fin))
 	(_ (close fin))
 	;(let inp "' '")
@@ -451,8 +488,6 @@
 	(stts (groupTokenTree sts onSError))
 	(_ (putStrLn (showList (showPair showSTokenTree showSPosition) stts "")))
 	(hstts _ (stts 0))
-	(hstts _ (_ 0))
-	(hstts _ (_ 0))
 	(exp pos (. (parseSSExp hstts onSError) feed))
 	(_ (putStrLn (showSSExp exp "")))
 	(_ (putStrLn (showSPosition pos "")))
