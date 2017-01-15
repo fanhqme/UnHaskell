@@ -4,6 +4,9 @@
 (def SPosition ^2)
 (def SFail (\msg pos (\on_fail on_succ (on_fail msg pos))))
 (def SSucc (\a (\on_fail on_succ (on_succ a))))
+(def <-SMF (\x (x SFail)))
+(def ,<-SMF (\x (. (<-SMF x) feed)))
+
 (let showSPosition (showPair showInt showInt))
 (let showPositionedChar (showPair showCharL showSPosition))
 (let showListPositionedChar (showList showPositionedChar))
@@ -15,17 +18,34 @@
 (def STRightPar (\f1 f2 f3 f4 f5 f6 f7 f5))
 (def STLambda (\f1 f2 f3 f4 f5 f6 f7 f6))
 (def STStr (\a f1 f2 f3 f4 f5 f6 f7 (f7 a)))
-(def showSTToken (\t (t
-	(\a (. (showString "(STAtom ") (. (showStringL a) (showString ")"))))
-	(\a (. (showString "(STInt ") (. (showInt a) (showString ")"))))
-	(\a (. (showString "(STDouble ") (. (showFloat a) (showString ")"))))
+(def showSToken (\t (t
+	(\a (. (showString "STAtom ") (showStringL a)))
+	(\a (. (showString "STInt ") (showInt a)))
+	(\a (. (showString "STDouble ") (showFloat a)))
 	(showString "STLeftPar")
 	(showString "STRightPar")
 	(showString "STLambda")
-	(\a (. (showString "(STStr ") (. (showStringL a) (showString ")"))))
+	(\a (. (showString "STStr ") (showStringL a) ))
 )))
-(let showPositionedSTToken (showPair showSTToken showSPosition))
+(let showPositionedSTToken (showPair showSToken showSPosition))
 (let showListPositionedSTToken (showList showPositionedSTToken))
+(def caseSTAtom     (\s e c (s     e (K c) (K c) c c c (K c))))
+(def caseSTInt      (\s e c (s (K c)     e (K c) c c c (K c))))
+(def caseSTDouble   (\s e c (s (K c) (K c)     e c c c (K c))))
+(def caseSTLeftPar  (\s e c (s (K c) (K c) (K c) e c c (K c))))
+(def caseSTRightPar (\s e c (s (K c) (K c) (K c) c e c (K c))))
+(def caseSTLambda   (\s e c (s (K c) (K c) (K c) c c e (K c))))
+(def caseSTStr      (\s e c (s (K c) (K c) (K c) c c c     e)))
+
+(def STTNode (\a f1 f2 (f1 a)))
+(def STTList (\a f1 f2 (f2 a)))
+(def showSTokenTree (\t (let
+	(show' (recur (\self (\t indent pos (t
+		(\token (. (iterateN indent (cons ' ')) (. (showSToken token) (. (showString ";") (. (showSPosition pos) (showString "\n"))))))
+		(\trees (. (iterateN indent (cons ' ')) (. (showString "STTree;") (. (showSPosition pos) (. (showString "\n") (concatShow (map (\xp (self (fst xp) (+ indent 4) (snd xp))) trees)))))))
+	)))))
+	(show' t 0 (SPosition 0 0))
+)))
 
 (def annotatePositions (\content
 	(zip content (scanl
@@ -81,14 +101,14 @@
 		(har arr (ar (SFail "unmatched \"" ap)))
 		( ((= (fst har) '"') (SSucc (pair "" arr))))
 		( ((= (fst har) '\\') (run
-			(c arrr (. (splitChrSpecial arr (snd har) SFail) feed))
-			(sr arrrr (. (self arrr ap SFail) feed))
+			(c arrr (,<-SMF (splitChrSpecial arr (snd har))))
+			(sr arrrr (,<-SMF (self arrr ap)))
 			(SSucc (pair (cons c sr) arrrr))
 		)))
-		(sr arrr (. (self arr ap SFail) feed))
+		(sr arrr (,<-SMF (self arr ap)))
 		(SSucc (pair (cons (fst har) sr) arrr))
 	)))))
-	(ps (splitStrLiteralS ar ap SFail))
+	(ps (<-SMF (splitStrLiteralS ar ap)))
 	(s r ps)
 	(SSucc (pair (pair (STStr s) ap) r))
 )))
@@ -98,13 +118,13 @@
 	( ((= (fst har) '\'') (SFail "empty ''" ap)))
 	(let on_error (SFail "unmatched \'" ap))
 	( ((= (fst har) '\\') (run
-		(c arrr (. (splitChrSpecial arr ap SFail) feed))
+		(c arrr (,<-SMF (splitChrSpecial arr ap)))
 		(harrr arrrr (arrr on_error))
 		( ((= (fst harrr) '\'') (SSucc (pair (pair (STInt c) ap) arrrr))))
 		on_error
 	)))
 	(harr arrr (arr on_error))
-	( ((= (fst harr) '\'') (SSucc (pair (pair (STInt (fst har)) ap) arr))))
+	( ((= (fst harr) '\'') (SSucc (pair (pair (STInt (fst har)) ap) arrr))))
 	on_error
 )))))
 (def isStopChar (\c (or (isSpace c) (any (= c) "()\\;"))))
@@ -165,21 +185,54 @@
 
 ; groupStrings :: [(Char,SPosition)] -> SMayFail [(SToken,SPosition)] 
 (def groupStrings (recur (\self (\x (run
-	(dropped (dropWhiteSpace x SFail))
+	(dropped (<-SMF (dropWhiteSpace x)))
 	(let groupStrings' (\a (run
 		(_ _ (a (SSucc empty)))
-		(f r (. (splitFirstString a SFail) feed))
-		(remain (self r SFail))
+		(f r (,<-SMF (splitFirstString a)))
+		(remain (<-SMF (self r)))
 		(SSucc (cons f remain))
 	)))
 	(groupStrings' dropped)
 )))))
 
+;firstTokenTree :: [(SToken,SPosition)] -> SMayFail ((STokenTree,SPosition),[(SToken,SPosition)])
+(def firstTokenTree (recur (\self (\a (run
+	(ha ar (a 0))
+	(tha pha ha)
+	(let groupUntilRightPar (recur (\self2 (\a sp (run
+		(ha ar (a (SFail "unmatched (" #|)|# sp)))
+		(tha pha ha)
+		( (caseSTRightPar tha (SSucc (pair empty ar))))
+		(t rr (,<-SMF (self a)))
+		(ts rrr (,<-SMF (self2 rr sp)))
+		(SSucc (pair (cons t ts) rrr))
+	)))))
+	( (caseSTLeftPar tha (run
+		(trees remain (,<-SMF (groupUntilRightPar ar pha)))
+		( ((null trees) (SFail "empty ()" pha)))
+		(SSucc (pair (pair (STTList trees) pha) remain))
+	)))
+	( (caseSTRightPar tha (SFail #|(|# "unmatched )" pha)))
+	(SSucc (pair (pair (STTNode tha) pha) ar))
+)))))
+
+;groupTokenTree :: [(SToken,SPosition)] -> SMayFail [(STokenTree,SPosition)]
+(def groupTokenTree (recur (\self (\a (run
+	(_ _ (a (SSucc empty)))
+	(tt remain (,<-SMF (firstTokenTree a)))
+	(rt (<-SMF (self remain)))
+	(SSucc (cons tt rt))
+)))))
+
 (run
-	(let inp " ;haha\n #|lala|# #| papa|# ; pia\n(def a 1)\n(+ a 2)")
+	;(let inp " ;haha\n #|lala|# #| papa|# ; pia\n(def a 1)\n(+ a 2)")
+	(fin (open "aplusb.u" ReadMode))
+	(inp (readContentF fin))
+	(_ (close fin))
+	;(let inp "' '")
 	;(let inp "")
 	;(let inp " a\\nbc\" a")
-	;(let inp "a' bc")
+	;(let inp "(a' bc)")
 	;(let inp "")
 	(let annotated (annotatePositions inp))
 	;(_ (putStrLn (showListPositionedChar annotated "")))
@@ -198,10 +251,22 @@
 	;(pst r (. (splitCharLiteral annotated (SPosition 0 0) onSError) feed))
 	;(pst r (. (splitNumLiteral annotated onSError) feed))
 	;(pst r (. (splitFirstString annotated onSError) feed))
-	;(_ (putStrLn (showSTToken (fst pst) "")))
+	;(_ (putStrLn (showSToken (fst pst) "")))
 	;(_ (putStrLn (showSPosition (snd pst) "")))
 	;(_ (putStrLn (showListPositionedChar r "")))
 	(sts (groupStrings annotated onSError))
 	(_ (putStrLn (showListPositionedSTToken sts "")))
+	;(_ (putStr (showSTokenTree 
+		;(STTList (list 
+			;(pair (STTNode (STAtom "ha")) (SPosition 0 1))
+			;(pair (STTNode (STAtom "pia")) (SPosition 0 2))
+		;))
+		;"")))
+	;(pt r (. (firstTokenTree sts onSError) feed))
+	;(t p pt)
+	;(_ (putStr (showSTokenTree t "")))
+	;(_ (putStrLn (showSPosition p "")))
+	(stts (groupTokenTree sts onSError))
+	(_ (putStrLn (showList (showPair showSTokenTree showSPosition) stts "")))
 	(exit 0)
 )

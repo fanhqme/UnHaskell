@@ -11,7 +11,7 @@ data STokenTree = STTNode SToken | STTList [(STokenTree,SPosition)]
 instance Show STokenTree where
 	show t = show' t 0 (0,0) where
 		show' t indent pos = case t of
-			STTNode token -> take indent (repeat ' ') ++ ((show token) ++" ;"++(show pos)++ "\n")
+			STTNode token -> take indent (repeat ' ') ++ ((show token) ++";"++(show pos)++ "\n")
 			STTList trees -> ((take indent (repeat ' '))++"STTree ;"++(show pos)++"\n")++concat (map (\(x,p) -> show' x (indent+4) p) trees)
 
 data SSExp = SSInt Int | SSDouble Double | SSLambda [Char] (SSExp,SPosition) | SSRef [Char] | SSApply (SSExp,SPosition) (SSExp,SPosition)
