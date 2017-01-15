@@ -961,9 +961,9 @@ void resolveAllValue(Value * v){ // v : stolen
 
 
 int executeValue(Value * v,int argc,char ** args){ // v: consumed
-	int cur_argi=0;
+	int cur_argi=1;
 	char * cur_arg=NULL;
-	if (argc>0){
+	if (argc>1){
 		cur_arg=args[cur_argi];
 	}
 	FILE ** files;
@@ -1085,6 +1085,7 @@ int executeValue(Value * v,int argc,char ** args){ // v: consumed
 			}else{
 				resultcode=-1;
 			}
+			printf("%d\n", resultcode);
 		}else if (v->exp->sys_type==SYS_CLOSE){
 			int fileid=v->exp->sys_arg1.int_val;
 			if (fileid<0 || fileid>=files_buflen || files[fileid]==NULL){
@@ -1208,6 +1209,7 @@ int executeVExp(VExp * exp,int argc,char ** argv){ // exp : consumed
 	pushEvalContinuation(v,
 		exp, //exp is consumed here
 		NULL);
+	printf("%s\n", argv[0]);
     return executeValue(v,argc,argv); // v is consumed here
 }
 
