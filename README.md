@@ -14,7 +14,7 @@ Hence, there is essentially no type at all, so any program type-checks. However,
 The purpose of U.hs is to let those annoyed by Haskell's type system get a look and feel of how life is like without it. You can use the power of untyped lambda calculus to (re-)invent:
 
 * Pairs, bools, lists and various fundamental data types
-* Pattern matching, guard statement
+* ADT, pattern matching, guard statement
 * Monadic programming
 
 And along the way, you will begin to appreciate how good the world was.
@@ -71,3 +71,5 @@ Language Specification
 There is a (Chinese) tutorial called "report.pdf" in report/report.pdf.
 
 More documentation will be written when the language reaches a relatively stable state.
+
+To have some fun, you can look at parseu.u (and uglyprinter.u) which are translations of the UParse.hs source code, the parser of U.hs language. And try to think of what other fun you can have with it!
