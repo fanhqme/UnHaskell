@@ -1,7 +1,16 @@
 (import* io)
 (import* parseu)
 (run
-	(fin (open "aplusb.u" ReadMode))
+	(args getArgs)
+	(arg0 _ (args (run
+		(_ (putStrLn "uglyprint ifname.u"))
+		(exit 1)
+	)))
+	(fin (open arg0 ReadMode))
+	( ((< fin 0) (run
+		(_ (putStrLn (++ "file not found: " arg0)))
+		(exit 1)
+	)))
 	(content (readContentF fin))
 	(_ (close fin))
 	(let onSError (\msg pos (run
