@@ -1,5 +1,6 @@
 (import* io)
 (import* str)
+(import* lexpru)
 ; SPosition (Int,Int)
 (def SPosition ^2)
 (def SFail (\msg pos (\on_fail on_succ (on_fail msg pos))))
@@ -7,7 +8,7 @@
 (def <-SMF (\x (x SFail)))
 (def ,<-SMF (\x (. (<-SMF x) feed)))
 
-(let showSPosition (showPair showInt showInt))
+(def showSPosition (showPair showInt showInt))
 (let showPositionedChar (showPair showCharL showSPosition))
 (let showListPositionedChar (showList showPositionedChar))
 
@@ -54,7 +55,7 @@
 			( (showString "STTree;"))
 			( (showSPosition pos))
 			( (showString "\n"))
-			( (concatShow (map (\xp (self (fst xp) (+ indent 4) (snd xp))) trees)))
+			( (concatShow (map (\xp (self (fst xp) (+ indent 1) (snd xp))) trees)))
 			return
 		))
 	)))))
@@ -70,50 +71,106 @@
 (def SSRef (\a f1 f2 f3 f4 f5 (f4 a)))
 (def SSApply (\a b f1 f2 f3 f4 f5 (f5 a b)))
 
-(def showSSExp (\e (let
+(def showSSExpP (\showpos (recur (\self (\e indent pos (let
 	(posComment (\pos (. (showString " #|") (. (showSPosition pos) (showString "|#")))))
-	(show' (recur (\self (\e indent pos (e
-		(\i (. (showString (itoa i)) (posComment pos)))
-		(\d (. (showString (ftoa d)) (posComment pos)))
+	(e
+		(\i (. (showString (itoa i)) (showpos (posComment pos) id)))
+		(\d (. (showString (ftoa d)) (showpos (posComment pos) id)))
 		(\name pbody (do
 			(body p pbody)
 			( (showString "(\\"#|)|#))
 			( (showString name))
-			( (showString " ;"))
-			( (showSPosition pos))
+			( (showpos (do
+				( (showString " ;"))
+				( (showSPosition pos))
+				return) id))
 			( (showString "\n"))
-			( (iterateN (+ indent 4) (cons ' ')))
-			( (self body (+ indent 4) p ))
+			( (iterateN (+ indent 1) (cons ' ')))
+			( (self body (+ indent 1) p ))
 			( (showString #|(|#")"))
 			return
 		))
-		(\ref (. (showString ref) (posComment pos)))
+		(\ref (. (showString ref) (showpos (posComment pos) id)))
 		(\pl1 pl2 (do
 			(e1 p1 pl1)
 			(e2 p2 pl2)
-			( (showString "(   "#|)|#))
-			( (self e1 (+ indent 4) p1))
+			( (showString "("#|)|#))
+			( (self e1 (+ indent 1) p1))
 			( (showString "\n"))
-			( (iterateN (+ indent 4) (cons ' ')))
-			( (self e2 (+ indent 4) p2))
+			( (iterateN (+ indent 1) (cons ' ')))
+			( (self e2 (+ indent 1) p2))
 			( (showString #|(|#")"))
 			return
 		))
-	)))))
-	(show' e 0 (SPosition 0 0))
-)))
+	)
+))))))
+(def showSSExp (\e (showSSExpP True e 0 (SPosition 0 0))))
 
-(def SVLocal @0_2)
-(def SVGlobal @1_2)
-(def SIQualified @0_2)
-(def SIUnqualified @1_2)
+(def SVLocal !0_2)
+(def SVGlobal !1_2)
+(def showSVisibility (\s (showString (s "let" "def"))))
+(def SIQualified !0_2)
+(def SIUnqualified !1_2)
+(def showSImportMode (\m (showString (m "import" "import*"))))
 ;data SSImport = SSImport [Char] SImportMode deriving Show
 (def SSImport ^2)
+(def showSSImport (feed (\name mode (do
+	( (showString "("))
+	( (showSImportMode mode))
+	( (showString " "))
+	( (showString name))
+	( (showString ")"))
+	return
+))))
 ;data SSDef = SSDef [Char] (SSExp,SPosition) SVisibility deriving Show
 (def SSDef ^3)
+(def showSSDef (feed (\name ep vis (do
+	(exp pos ep)
+	( (showString "("))
+	( (showSVisibility vis))
+	( (showString " "))
+	( (showString name))
+	( (showString "\n "))
+	( (showSSExpP True exp 1 pos))
+	( (showString ")"))
+	return
+))))
+(def showSSDefP (\showpos pos (feed (\name ep vis (do
+	(exp pos ep)
+	( (showString "("))
+	( (showSVisibility vis))
+	( (showString " "))
+	( (showString name))
+	( (showpos (do
+		( (showString " ;"))
+		( (showSPosition pos))
+		return) id))
+	( (showString "\n "))
+	( (showSSExpP showpos exp 1 pos))
+	( (showString ")"))
+	return
+)))))
 ;data SSModule = SSModule [(SSImport,SPosition)] [(SSDef,SPosition)] deriving Show
 (def SSModule ^2)
-
+(def showSSModuleP (\showpos (feed (\imports defs (do
+	( (concatShow (map (\p (do
+		(e pos p)
+		( (showSSImport e))
+		( (showpos (do
+			( (showString " ;"))
+			( (showSPosition pos))
+			return) id))
+		( (cons '\n'))
+		return
+	)) imports)))
+	( (concatShow (intersperse (cons '\n') (map (\p (do
+		(e pos p)
+		( (showSSDefP showpos pos e))
+		return
+	)) defs))))
+	return
+)))))
+(def showSSModule (showSSModuleP True))
 
 (def annotatePositions (\content
 	(zip content (scanl
@@ -351,7 +408,7 @@
 				( K)
 				(n0 p0 htrees)
 				(let name_node (foldr1 cons (K empty) empty trees))
-				(let ebody (foldr !0_2 htrees listr))
+				(let ebody (foldr1 !1_2 id htrees listr))
 				(let mnames (foldr (\pnode m_cur (run
 					(cur (m_cur nothing))
 					(node pos pnode)
@@ -437,6 +494,82 @@
 		))
 	)
 )))))
+(def extractLExpr (recur (\self (\s (s
+	(\i (LInt i))
+	(\d (LDouble d))
+	(\name body (LAbs name (self (fst body))))
+	(\ref (LRef ref))
+	(\l1 l2 (LApply (self (fst l1)) (self (fst l2))))
+)))))
+
+(def parseSSModule (\trees (run
+	(let getImportBlock (recur (\self2 (\blocks (run
+		(hb rb (blocks (SSucc (pair empty empty))))
+		( (run
+			(thb p1 hb)
+			(lst (. (feed id) (caseSTTList thb)))
+			(hlst rlst (lst id))
+			(thlst phlst hlst)
+			(token (. (feed id) (caseSTTNode thlst)))
+			(stmt (. (feed id) (caseSTAtom token)))
+			(mode (feed id (run
+				( ((eqStr stmt "import") (just SIQualified)))
+				( ((eqStr stmt "import*") (just SIUnqualified)))
+				nothing
+			)))
+			(hrlst rrlst (rlst id))
+			( (. (feed id) (null rrlst)))
+			(thrlst phrlst hrlst)
+			(token2 (. (feed id) (caseSTTNode thrlst)))
+			(name (. (feed id) (caseSTAtom token2)))
+			( K)
+			(sis remain (,<-SMF (self2 rb)))
+			(SSucc (pair (cons (pair (SSImport name mode) p1) sis) remain))
+		))
+		(SSucc (pair empty blocks))
+	)))))
+	(let getDefBlock (recur (\self2 (\blocks (run
+		(hb rb (blocks (SSucc (pair empty empty))))
+		( (run
+			(thb p1 hb)
+			(lst (. (feed id) (caseSTTList thb)))
+			(hlst rlst (lst id))
+			(thlst phlst hlst)
+			(token (. (feed id) (caseSTTNode thlst)))
+			(stmt (. (feed id) (caseSTAtom token)))
+			(vis (feed id (run
+				( ((eqStr stmt "def") (just SVGlobal)))
+				( ((eqStr stmt "let") (just SVLocal)))
+				nothing
+			)))
+			(hrlst rrlst (rlst id))
+			(thrlst phrlst hrlst)
+			(token2 (. (feed id) (caseSTTNode thrlst)))
+			(name (. (feed id) (caseSTAtom token2)))
+			(body rrrlst (rrlst id))
+			( (. (feed id) (null rrrlst)))
+			( K)
+			(firstexp p2 (,<-SMF (parseSSExp body)))
+			(sds remain (,<-SMF (self2 rb)))
+			(SSucc (pair (cons (pair (SSDef name (pair firstexp p2) vis) p1) sds) remain))
+		))
+		(SSucc (pair empty blocks))
+	)))))
+	(simports others1 (,<-SMF (getImportBlock trees)))
+	(sdefs others2 (,<-SMF (getDefBlock others1)))
+	(h2 r2 (others2 (SSucc (SSModule simports sdefs))))
+	( ((not (null r2)) (SFail "illegal declaration" (snd h2))))
+	(e p h2)
+	(e1 p1 (,<-SMF (parseSSExp h2)))
+	(SSucc (SSModule simports (++ sdefs (list (pair (SSDef "main" (pair e1 p1) SVGlobal) p)))))
+)))
+
+(def parseSSModuleStr (\a (run
+	( (feed (annotatePositions a)))
+	( (.(.(feed(. <-SMF groupStrings)).)feed))
+	( (.(.(feed(. <-SMF groupTokenTree)).)feed))
+	parseSSModule
+)))
 
 (run
 	;(let inp " ;haha\n #|lala|# #| papa|# ; pia\n(def a 1)\n(+ a 2)")
@@ -453,7 +586,7 @@
 	;(let inp "((\\a b a) b)")
 	;(let inp "a")
 	;(let inp "(run (a 1) (b 2) (x x))")
-	(let annotated (annotatePositions inp))
+	;(let annotated (annotatePositions inp))
 	;(_ (putStrLn (showListPositionedChar annotated "")))
 	(let onSError (\msg pos (run
 		(_ (putStr (++ "parser error: " (++ msg " at "))))
@@ -473,7 +606,7 @@
 	;(_ (putStrLn (showSToken (fst pst) "")))
 	;(_ (putStrLn (showSPosition (snd pst) "")))
 	;(_ (putStrLn (showListPositionedChar r "")))
-	(sts (groupStrings annotated onSError))
+	;(sts (groupStrings annotated onSError))
 	;(_ (putStrLn (showListPositionedSTToken sts "")))
 	;(_ (putStr (showSTokenTree 
 		;(STTList (list 
@@ -485,11 +618,27 @@
 	;(t p pt)
 	;(_ (putStr (showSTokenTree t "")))
 	;(_ (putStrLn (showSPosition p "")))
-	(stts (groupTokenTree sts onSError))
-	(_ (putStrLn (showList (showPair showSTokenTree showSPosition) stts "")))
-	(hstts _ (stts 0))
-	(exp pos (. (parseSSExp hstts onSError) feed))
-	(_ (putStrLn (showSSExp exp "")))
-	(_ (putStrLn (showSPosition pos "")))
+	;(stts (groupTokenTree sts onSError))
+	;(_ (putStrLn (showList (showPair showSTokenTree showSPosition) stts "")))
+	;(hstts _ (stts 0))
+	;(exp pos (. (parseSSExp hstts onSError) feed))
+	;(_ (putStrLn (showSSExp exp "")))
+	;(_ (putStrLn (showSPosition pos "")))
+	;(let lexpr (extractLExpr exp))
+	;(_ (putStrLn (showLExpr lexpr "")))
+	;(_ (putStrLn (showSSImport (SSImport "io" SIQualified) "")))
+	;(_ (putStrLn (showSSImport (SSImport "str" SIUnqualified) "")))
+	;(_ (putStrLn (showSSModule (SSModule
+		;(list
+			;(pair (SSImport "io" SIQualified) (SPosition 0 0))
+			;(pair (SSImport "str" SIUnqualified) (SPosition 0 1))
+		;)
+		;(list
+			;(pair (SSDef "a" (pair (SSInt 1) (SPosition 0 0)) SVGlobal) (SPosition 1 2))
+			;(pair (SSDef "b" (pair (SSInt 2) (SPosition 0 1)) SVLocal) (SPosition 1 3))
+		;)
+	;) "")))
+	(mod (parseSSModuleStr inp onSError))
+	(_ (putStrLn (showSSModule mod "")))
 	(exit 0)
 )

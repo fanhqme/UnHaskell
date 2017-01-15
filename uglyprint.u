@@ -1,0 +1,20 @@
+(import* io)
+(import* parseu)
+(run
+	(args getArgs)
+	(arg0 _ (args (run
+		(_ (putStrLn "uglyprint filename.u"))
+		(exit 0)
+	)))
+	(fin (open arg0 ReadMode))
+	(content (readContentF fin))
+	(_ (close fin))
+	(let onSError (\msg pos (run
+		(_ (putStr (++ "parser error: " (++ msg " at "))))
+		(_ (putStrLn (showSPosition pos "")))
+		(exit 1)
+	)))
+	(mod (parseSSModuleStr content onSError))
+	(_ (putStrLn (showSSModuleP False mod "")))
+	(exit 0)
+)
