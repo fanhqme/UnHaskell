@@ -2,6 +2,7 @@ module UParse where
 
 import Data.Char
 import ULambdaExpression
+import Control.Applicative
 
 type SPosition = (Int,Int)
 data SMayFail a = SFail [Char] SPosition | SSucc a deriving Show
@@ -30,7 +31,14 @@ instance Show SSExp where
 			SSLambda name (e,p) -> ("(\\"++name ++" ;"++(show pos)++ "\n" ++ (take indent (repeat ' ')) ++ show' e (indent+4) p ++")")
 			SSApply (e1,p1) (e2,p2) -> ("("++ show' e1 (indent+4) p1 ++ "\n" ++ (take indent (repeat ' '))++show' e2 (indent+4) p2++")")
 
-
+instance Functor SMayFail where
+	fmap _ (SFail a b) = SFail a b
+	fmap f (SSucc a) = SSucc (f a)
+instance Applicative SMayFail where
+	pure a = SSucc a
+	_ <*> (SFail a b) = SFail a b
+	(SFail a b) <*> _ = SFail a b
+	(SSucc f) <*> (SSucc a) = SSucc (f a)
 instance Monad SMayFail where
 	(SSucc a) >>= g = g a
 	(SFail a b) >>= g = SFail a b
