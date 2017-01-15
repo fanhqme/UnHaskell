@@ -27,7 +27,7 @@ instance Show SSExp where
 			SSInt val -> ((show val) ++" #|"++(show pos)++"|#")
 			SSDouble val -> ((show val) ++" #|"++(show pos)++"|#")
 			SSRef name -> (name ++" #|"++(show pos)++"|#")
-			SSLambda name (e,p) -> ("(\\"++name ++" ;"++(show pos)++ "\n" ++ (take indent (repeat ' ')) ++ show' e (indent+4) p ++(take indent (repeat ' '))++")")
+			SSLambda name (e,p) -> ("(\\"++name ++" ;"++(show pos)++ "\n" ++ (take indent (repeat ' ')) ++ show' e (indent+4) p ++")")
 			SSApply (e1,p1) (e2,p2) -> ("("++ show' e1 (indent+4) p1 ++ "\n" ++ (take indent (repeat ' '))++show' e2 (indent+4) p2++")")
 
 

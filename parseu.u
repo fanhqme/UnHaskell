@@ -41,18 +41,68 @@
 (def STTList (\a f1 f2 (f2 a)))
 (def showSTokenTree (\t (let
 	(show' (recur (\self (\t indent pos (t
-		(\token (. (iterateN indent (cons ' ')) (. (showSToken token) (. (showString ";") (. (showSPosition pos) (showString "\n"))))))
-		(\trees (. (iterateN indent (cons ' ')) (. (showString "STTree;") (. (showSPosition pos) (. (showString "\n") (concatShow (map (\xp (self (fst xp) (+ indent 4) (snd xp))) trees)))))))
+		(\token (do
+			( (iterateN indent (cons ' ')))
+			( (showSToken token))
+			( (showString ";"))
+			( (showSPosition pos))
+			( (showString "\n"))
+			return
+		))
+		(\trees (do
+			( (iterateN indent (cons ' ')))
+			( (showString "STTree;"))
+			( (showSPosition pos))
+			( (showString "\n"))
+			( (concatShow (map (\xp (self (fst xp) (+ indent 4) (snd xp))) trees)))
+			return
+		))
 	)))))
 	(show' t 0 (SPosition 0 0))
 )))
+(def caseSTTNode (\s e c (s e     (K c))))
+(def caseSTTList (\s e c (s (K c) e    )))
 
 ; data SSExp = SSInt Int | SSDouble Double | SSLambda [Char] (SSExp,SPosition) | SSRef [Char] | SSApply (SSExp,SPosition) (SSExp,SPosition)
 (def SSInt (\a f1 f2 f3 f4 f5 (f1 a)))
 (def SSDouble (\a f1 f2 f3 f4 f5 (f2 a)))
-(def SSLambda (\a f1 f2 f3 f4 f5 (f3 a)))
+(def SSLambda (\a b f1 f2 f3 f4 f5 (f3 a b)))
 (def SSRef (\a f1 f2 f3 f4 f5 (f4 a)))
-(def SSApply (\a f1 f2 f3 f4 f5 (f5 a)))
+(def SSApply (\a b f1 f2 f3 f4 f5 (f5 a b)))
+
+(def showSSExp (\e (let
+	(posComment (\pos (. (showString " #|") (. (showSPosition pos) (showString "|#")))))
+	(show' (recur (\self (\e indent pos (e
+		(\i (. (showString (itoa i)) (posComment pos)))
+		(\d (. (showString (ftoa d)) (posComment pos)))
+		(\name pbody (do
+			(body p pbody)
+			( (showString "(\\"#|)|#))
+			( (showString name))
+			( (showString " ;"))
+			( (showSPosition pos))
+			( (showString "\n"))
+			( (iterateN (+ indent 4) (cons ' ')))
+			( (self body (+ indent 4) p ))
+			( (showString #|(|#")"))
+			return
+		))
+		(\ref (. (showString ref) (posComment pos)))
+		(\pl1 pl2 (do
+			(e1 p1 pl1)
+			(e2 p2 pl2)
+			( (showString "(   "#|)|#))
+			( (self e1 (+ indent 4) p1))
+			( (showString "\n"))
+			( (iterateN (+ indent 4) (cons ' ')))
+			( (self e2 (+ indent 4) p2))
+			( (showString #|(|#")"))
+			return
+		))
+	)))))
+	(show' e 0 (SPosition 0 0))
+)))
+
 (def SVLocal @0_2)
 (def SVGlobal @1_2)
 (def SIQualified @0_2)
@@ -63,6 +113,7 @@
 (def SSDef ^3)
 ;data SSModule = SSModule [(SSImport,SPosition)] [(SSDef,SPosition)] deriving Show
 (def SSModule ^2)
+
 
 (def annotatePositions (\content
 	(zip content (scanl
@@ -241,6 +292,115 @@
 	(SSucc (cons tt rt))
 )))))
 
+;parseSSExp :: (STokenTree,SPosition) -> SMayFail (SSExp,SPosition)
+(def parseSSExp (recur (\self (\ptree (run
+	(tree sp ptree)
+	(let constructApplySugar (recur (\self2 (\trees ep (run
+		(ht rt (trees (SSucc ep)))
+		(e1 p1 (,<-SMF (self ht)))
+		(self2 rt (pair (SSApply ep (pair e1 p1)) (snd ep)))
+	)))))
+	(let constructLambdaSugar (recur (\self2 (\r p (run
+		(hr rr (r (SFail "incomplete lambda expression" p)))
+		(thr phr hr)
+		(hrr rrr (rr (SFail "incomplete lambda expression" p)))
+		(_ _ (rrr (run
+			( (caseSTTNode thr (\token (run
+				( (caseSTAtom token (\name (run
+					(ebody pb (,<-SMF (self hrr)))
+					(K (SSucc (pair (SSLambda name (pair ebody pb)) phr)))
+				))))
+				id
+			)) id))
+			(SFail "lambda expression needs a variable name" p)
+		)))
+		( (caseSTTNode thr (\token (run
+			( (caseSTAtom token (\name (run
+				(ebody pb (,<-SMF (self2 rr p)))
+				(K (SSucc (pair (SSLambda name (pair ebody pb)) phr)))
+			))))
+			id
+		)) id))
+		(SFail "lambda expression needs a variable name" p)
+	)))))
+	(let constructRunSugar (recur (\self2 (\r p (run
+		(hr rr (r (SFail "empty do/run clause" p)))
+		(_ _ (rr (self hr)))
+		(thr phr hr)
+		(let on_error (SFail "invalid syntax in do/run clause" p))
+		( (caseSTTList thr (\trees (run
+			( (run
+				(htrees rtrees (trees id))
+				(thtrees p0 htrees)
+				(token (. (feed id) (caseSTTNode thtrees)))
+				(letstr (. (feed id) (caseSTAtom token)))
+				( (. (feed id) (eqStr letstr "let")))
+				(hrtrees rrtrees (rtrees id))
+				(thrtrees _ hrtrees)
+				(token2 (. (feed id) (caseSTTNode thrtrees)))
+				(name (. (feed id) (caseSTAtom token2)))
+				(e rrrtrees (rrtrees id))
+				( (. (feed id) (null rrrtrees)))
+				( K)
+				(e1 p1 (,<-SMF (self e)))
+				(e2 p2 (,<-SMF (self2 rr p)))
+				(SSucc (pair (SSApply (pair (SSLambda name (pair e2 p2)) phr) (pair e1 p1)) p0))
+			))
+			( (run
+				(htrees listr (trees id))
+				( K)
+				(n0 p0 htrees)
+				(let name_node (foldr1 cons (K empty) empty trees))
+				(let ebody (foldr !0_2 htrees listr))
+				(let mnames (foldr (\pnode m_cur (run
+					(cur (m_cur nothing))
+					(node pos pnode)
+					(token (. (feed nothing) (caseSTTNode node)))
+					(name (. (feed nothing) (caseSTAtom token)))
+					(just (cons (pair name pos) cur))
+				)) (just empty) name_node))
+				(names (mnames (SFail "invalid syntax in do/run clause" p0)))
+				(e1 p1 (,<-SMF (self ebody)))
+				(e2 p2 (,<-SMF (self2 rr p)))
+				(let absremain (foldr (\namepos ep (pair (SSLambda (fst namepos) ep) (snd namepos))) (pair e2 p2) names))
+				(SSucc (pair (SSApply (pair e1 p1) absremain) p0))
+			))
+			on_error
+		))))
+		on_error
+	)))))
+	(tree
+		(\token (let ; STTNode
+			(other (SFail "illegal token " sp))
+			(token
+				(\name (SSucc (pair (SSRef name) sp)))
+				(\i (SSucc (pair (SSInt i) sp)))
+				(\d (SSucc (pair (SSDouble d) sp)))
+				other
+				other
+				other
+				other ; todo: constructStrSugar
+			)
+		))
+		(\trees (run
+			(ht rt (trees (SFail "empty expression" sp)))
+			(tht pht ht)
+			( (caseSTTNode tht (\token (run
+				( (caseSTLambda token (K (constructLambdaSugar rt pht))))
+				( (caseSTAtom token (\name (run
+					( ((eqStr name "lambda") (K (constructLambdaSugar rt pht))))
+					( ((eqStr name "run") (K (constructRunSugar rt pht))))
+					id
+				))))
+				id
+			)) id))
+			(_ _ (trees (SFail "extra parenthesis" sp)))
+			(e1 p1 (,<-SMF (self ht)))
+			(constructApplySugar rt (pair e1 p1))
+		))
+	)
+)))))
+
 (run
 	;(let inp " ;haha\n #|lala|# #| papa|# ; pia\n(def a 1)\n(+ a 2)")
 	(fin (open "aplusb.u" ReadMode))
@@ -251,6 +411,11 @@
 	;(let inp " a\\nbc\" a")
 	;(let inp "(a' bc)")
 	;(let inp "")
+	;(let inp "(+ (+ a b) c)")
+	;(let inp "\\a a")
+	;(let inp "((\\a b a) b)")
+	;(let inp "a")
+	;(let inp "(run (a 1) (b 2) (x x))")
 	(let annotated (annotatePositions inp))
 	;(_ (putStrLn (showListPositionedChar annotated "")))
 	(let onSError (\msg pos (run
@@ -272,7 +437,7 @@
 	;(_ (putStrLn (showSPosition (snd pst) "")))
 	;(_ (putStrLn (showListPositionedChar r "")))
 	(sts (groupStrings annotated onSError))
-	(_ (putStrLn (showListPositionedSTToken sts "")))
+	;(_ (putStrLn (showListPositionedSTToken sts "")))
 	;(_ (putStr (showSTokenTree 
 		;(STTList (list 
 			;(pair (STTNode (STAtom "ha")) (SPosition 0 1))
@@ -285,5 +450,11 @@
 	;(_ (putStrLn (showSPosition p "")))
 	(stts (groupTokenTree sts onSError))
 	(_ (putStrLn (showList (showPair showSTokenTree showSPosition) stts "")))
+	(hstts _ (stts 0))
+	(hstts _ (_ 0))
+	(hstts _ (_ 0))
+	(exp pos (. (parseSSExp hstts onSError) feed))
+	(_ (putStrLn (showSSExp exp "")))
+	(_ (putStrLn (showSPosition pos "")))
 	(exit 0)
 )

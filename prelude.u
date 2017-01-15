@@ -67,6 +67,11 @@
 		)
 	))))
 )))))
+(def eqList (\eq (recur (\f (\l1 l2
+	(l1 (l2 True (\_ _ False)) (\h1 r1 (l2 False (\h2 r2
+		((eq h1 h2) (f r1 r2) False)
+	))))
+)))))
 (def dropWhile (\cond (recur (\f (\l
 	(l l (\h r
 		((cond h) (f r) l)
