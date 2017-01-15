@@ -6,6 +6,7 @@ import Data.Char
 import System.Process
 import System.Exit
 import Control.Monad.Trans.Class
+import Control.Applicative
 
 class UEnv e where
 	-- eExit :: Int -> e ()
@@ -21,6 +22,13 @@ class UEnv e where
 
 data UEvalResult r a = URunning a | UExited Int | UExceptionHappened [Char] | UResultReturned r
 newtype UEvalEnv r e a = UEvalEnv {runUEvalEnv :: e (UEvalResult r a)}
+
+-- Strange code to make GHC 8.0.1 happy
+instance (Functor e) => Functor (UEvalEnv r e) where
+	fmap f a = error "not implemented"
+instance (Applicative e) => Applicative (UEvalEnv r e) where
+	(UEvalEnv f) <*> (UEvalEnv g) = error "not implemented"
+	pure a = UEvalEnv (pure (URunning a))
 
 instance (Monad e) => Monad (UEvalEnv r e) where
 	(UEvalEnv f) >>= g = UEvalEnv (f >>= (\ret -> case (ret) of
@@ -69,6 +77,13 @@ newtype URealWorldEnv a = URealWorldEnv {runRealWorldEnv :: UFileList Handle ->I
 
 liftUR :: IO a -> URealWorldEnv a
 liftUR b = URealWorldEnv (\f -> (b>>=(\a -> return (a,f))))
+
+-- Strange code to make GHC 8.0.1 happy
+instance Functor URealWorldEnv where
+	fmap f a = error "not implemented"
+instance Applicative URealWorldEnv where
+	f <*> g = error "not implemented"
+	pure a = URealWorldEnv (\f -> pure (a,f))
 
 instance Monad URealWorldEnv where
 	(URealWorldEnv f) >>= g = URealWorldEnv (\initfiles -> 

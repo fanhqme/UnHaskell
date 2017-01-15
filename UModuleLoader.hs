@@ -5,9 +5,18 @@ import qualified Data.Set as Set
 import System.Directory
 import UParse
 import ULambdaExpression
+import Control.Applicative
 
 data MMayFail a = MSucc a | MFail [Char] [Char] SPosition deriving Show     -- message, module name, position
 
+instance Functor MMayFail where
+	fmap _ (MFail a b c) = MFail a b c
+	fmap f (MSucc a) = MSucc (f a)
+instance Applicative MMayFail where
+	pure a = MSucc a
+	_ <*> (MFail a b c) = MFail a b c
+	(MFail a b c) <*> _ = MFail a b c
+	(MSucc f) <*> (MSucc a) = MSucc (f a)
 instance Monad MMayFail where
 	(MSucc f) >>= g = g f
 	(MFail a b c) >>= g = MFail a b c
