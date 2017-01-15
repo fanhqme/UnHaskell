@@ -429,10 +429,6 @@ Value * allocateValue(Value * p){
 	}
 }
 
-//Value* newValue(){  // returns: new
-    //Value * p = allocateValue(NULL);
-    //return p;
-//}
 Value * newResolvedValue(VExp * exp, VContext * context){ // exp : consumed  context : consumed
     Value * p = allocateValue(NULL);
 	p->type=VALUE_RESOLVED;
@@ -923,6 +919,16 @@ Value * resolveValue(Value * v){ // v : stolen    returns: stolen
 						retainIntList(exp->intlist_val)
 					)
 				);
+				//printf("append %d %p -> %p\n",x->exp->num_val.int_val,exp->intlist_val,nexp->intlist_val);
+				//int cnt=0;
+				/*for (IntList *z=nexp->intlist_val;z;z=z->next){
+					printf("z %d %p\n",z->val,z->next);
+					cnt++;
+					if (cnt>=10){
+						puts("...");
+						break;
+					}
+				}*/
 				setRunningValue(v,nexp,NULL);
 				popContinuation(v);
 			}
@@ -1085,7 +1091,6 @@ int executeValue(Value * v,int argc,char ** args){ // v: consumed
 			}else{
 				resultcode=-1;
 			}
-			printf("%d\n", resultcode);
 		}else if (v->exp->sys_type==SYS_CLOSE){
 			int fileid=v->exp->sys_arg1.int_val;
 			if (fileid<0 || fileid>=files_buflen || files[fileid]==NULL){
@@ -1209,7 +1214,6 @@ int executeVExp(VExp * exp,int argc,char ** argv){ // exp : consumed
 	pushEvalContinuation(v,
 		exp, //exp is consumed here
 		NULL);
-	printf("%s\n", argv[0]);
     return executeValue(v,argc,argv); // v is consumed here
 }
 

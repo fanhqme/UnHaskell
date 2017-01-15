@@ -15,11 +15,11 @@ IntList * allocateIntList(IntList * p){
 			}
 		}
 		p=pool;
+		p->refcount=1;
 		pool=pool->next;
 		return p;
 	}else{
 		p->next=pool;
-		p->refcount=1;
 		pool=p;
 		return NULL;
 	}

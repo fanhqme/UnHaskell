@@ -581,7 +581,7 @@ define zeroext i1 @neqNumber(i32 %a.coerce0, i64 %a.coerce1, i32 %b.coerce0, i64
 define %struct.IntList* @allocateIntList(%struct.IntList* %p) #1 {
   %1 = icmp eq %struct.IntList* %p, null
   %2 = load %struct.IntList** @allocateIntList.pool, align 8, !tbaa !1
-  br i1 %1, label %3, label %16
+  br i1 %1, label %3, label %17
 
 ; <label>:3                                       ; preds = %0
   %4 = icmp eq %struct.IntList* %2, null
@@ -610,20 +610,20 @@ define %struct.IntList* @allocateIntList(%struct.IntList* %p) #1 {
 
 ; <label>:12                                      ; preds = %.loopexit, %3
   %13 = phi %struct.IntList* [ %scevgep3, %.loopexit ], [ %2, %3 ]
-  %14 = getelementptr inbounds %struct.IntList* %13, i64 0, i32 1
-  %15 = load %struct.IntList** %14, align 8, !tbaa !5
+  %14 = getelementptr inbounds %struct.IntList* %13, i64 0, i32 2
+  store i32 1, i32* %14, align 4, !tbaa !8
+  %15 = getelementptr inbounds %struct.IntList* %13, i64 0, i32 1
+  %16 = load %struct.IntList** %15, align 8, !tbaa !5
   br label %19
 
-; <label>:16                                      ; preds = %0
-  %17 = getelementptr inbounds %struct.IntList* %p, i64 0, i32 1
-  store %struct.IntList* %2, %struct.IntList** %17, align 8, !tbaa !5
-  %18 = getelementptr inbounds %struct.IntList* %p, i64 0, i32 2
-  store i32 1, i32* %18, align 4, !tbaa !8
+; <label>:17                                      ; preds = %0
+  %18 = getelementptr inbounds %struct.IntList* %p, i64 0, i32 1
+  store %struct.IntList* %2, %struct.IntList** %18, align 8, !tbaa !5
   br label %19
 
-; <label>:19                                      ; preds = %16, %12
-  %storemerge = phi %struct.IntList* [ %15, %12 ], [ %p, %16 ]
-  %.0 = phi %struct.IntList* [ %13, %12 ], [ null, %16 ]
+; <label>:19                                      ; preds = %17, %12
+  %storemerge = phi %struct.IntList* [ %16, %12 ], [ %p, %17 ]
+  %.0 = phi %struct.IntList* [ %13, %12 ], [ null, %17 ]
   store %struct.IntList* %storemerge, %struct.IntList** @allocateIntList.pool, align 8, !tbaa !1
   ret %struct.IntList* %.0
 }
@@ -673,7 +673,6 @@ define noalias %struct.IntList* @releaseIntList(%struct.IntList* %p) #1 {
 allocateIntList.exit:                             ; preds = %7, %11
   %13 = load %struct.IntList** @allocateIntList.pool, align 8, !tbaa !1
   store %struct.IntList* %13, %struct.IntList** %8, align 8, !tbaa !5
-  store i32 1, i32* %3, align 4, !tbaa !8
   store %struct.IntList* %p, %struct.IntList** @allocateIntList.pool, align 8, !tbaa !1
   br label %14
 
@@ -710,12 +709,14 @@ define %struct.IntList* @newIntList(i32 %val, %struct.IntList* %nxt) #1 {
 
 allocateIntList.exit:                             ; preds = %0, %.loopexit.i
   %10 = phi %struct.IntList* [ %scevgep3.i, %.loopexit.i ], [ %1, %0 ]
-  %11 = getelementptr inbounds %struct.IntList* %10, i64 0, i32 1
-  %12 = load %struct.IntList** %11, align 8, !tbaa !5
-  store %struct.IntList* %12, %struct.IntList** @allocateIntList.pool, align 8, !tbaa !1
-  %13 = getelementptr inbounds %struct.IntList* %10, i64 0, i32 0
-  store i32 %val, i32* %13, align 4, !tbaa !9
-  store %struct.IntList* %nxt, %struct.IntList** %11, align 8, !tbaa !5
+  %11 = getelementptr inbounds %struct.IntList* %10, i64 0, i32 2
+  store i32 1, i32* %11, align 4, !tbaa !8
+  %12 = getelementptr inbounds %struct.IntList* %10, i64 0, i32 1
+  %13 = load %struct.IntList** %12, align 8, !tbaa !5
+  store %struct.IntList* %13, %struct.IntList** @allocateIntList.pool, align 8, !tbaa !1
+  %14 = getelementptr inbounds %struct.IntList* %10, i64 0, i32 0
+  store i32 %val, i32* %14, align 4, !tbaa !9
+  store %struct.IntList* %nxt, %struct.IntList** %12, align 8, !tbaa !5
   ret %struct.IntList* %10
 }
 
@@ -3000,12 +3001,12 @@ define %struct.Value* @resolveValue(%struct.Value* %v) #1 {
 ; <label>:4                                       ; preds = %0
   %5 = getelementptr inbounds %struct.Value* %v, i64 0, i32 0
   store i32 0, i32* %5, align 4, !tbaa !33
-  br label %1083
+  br label %1084
 
 ; <label>:6                                       ; preds = %0
   %7 = getelementptr inbounds %struct.Continuation* %2, i64 0, i32 0
   %8 = load i32* %7, align 4, !tbaa !17
-  switch i32 %8, label %1083 [
+  switch i32 %8, label %1084 [
     i32 0, label %9
     i32 1, label %276
   ]
@@ -3094,7 +3095,7 @@ popContinuation.exit28:                           ; preds = %retainVContext.exit
 
 ; <label>:54                                      ; preds = %popContinuation.exit28, %9
   %55 = phi i32 [ %.pr, %popContinuation.exit28 ], [ %15, %9 ]
-  switch i32 %55, label %1083 [
+  switch i32 %55, label %1084 [
     i32 7, label %56
     i32 8, label %112
   ]
@@ -3120,7 +3121,7 @@ lookUpRef.exit:                                   ; preds = %.lr.ph.i, %56
   %64 = load %struct.Value** %63, align 8, !tbaa !14
   %65 = getelementptr inbounds %struct.Value* %64, i64 0, i32 0
   %66 = load i32* %65, align 4, !tbaa !33
-  switch i32 %66, label %1084 [
+  switch i32 %66, label %1085 [
     i32 0, label %67
     i32 1, label %108
   ]
@@ -3198,14 +3199,14 @@ allocateContinuation.exit.i.i31:                  ; preds = %102, %95, %92
 
 popContinuation.exit32:                           ; preds = %retainVContext.exit30, %allocateContinuation.exit.i.i31
   store %struct.Continuation* %90, %struct.Continuation** %1, align 8, !tbaa !37
-  br label %1083
+  br label %1084
 
 ; <label>:108                                     ; preds = %lookUpRef.exit
   %109 = getelementptr inbounds %struct.Value* %64, i64 0, i32 1
   %110 = bitcast %union.anon.0* %109 to i8**
   %111 = load i8** %110, align 8, !tbaa !1
   tail call void @setExceptionValue(%struct.Value* %v, i8* %111)
-  br label %1083
+  br label %1084
 
 ; <label>:112                                     ; preds = %54
   %113 = getelementptr inbounds %struct.VExp* %11, i64 0, i32 3
@@ -3566,7 +3567,7 @@ pushEvalContinuation.exit73:                      ; preds = %pushApplyContinuati
   %275 = load %struct.Continuation** %1, align 8, !tbaa !37
   store %struct.Continuation* %275, %struct.Continuation** %270, align 8, !tbaa !15
   store %struct.Continuation* %269, %struct.Continuation** %1, align 8, !tbaa !37
-  br label %1083
+  br label %1084
 
 ; <label>:276                                     ; preds = %6
   %277 = getelementptr inbounds %struct.Value* %v, i64 0, i32 1, i32 0, i32 0
@@ -3578,18 +3579,18 @@ pushEvalContinuation.exit73:                      ; preds = %pushApplyContinuati
   %283 = load %struct.Value** %282, align 8, !tbaa !21
   %284 = getelementptr inbounds %struct.VExp* %278, i64 0, i32 0
   %285 = load i32* %284, align 4, !tbaa !25
-  switch i32 %285, label %1083 [
+  switch i32 %285, label %1084 [
     i32 0, label %286
     i32 1, label %287
     i32 2, label %387
     i32 3, label %524
     i32 4, label %961
-    i32 5, label %1048
+    i32 5, label %1049
   ]
 
 ; <label>:286                                     ; preds = %276
   tail call void @setExceptionValue(%struct.Value* %v, i8* getelementptr inbounds ([37 x i8]* @.str42, i64 0, i64 0))
-  br label %1083
+  br label %1084
 
 ; <label>:287                                     ; preds = %276
   %288 = icmp eq %struct.Value* %283, null
@@ -3713,7 +3714,7 @@ allocateContinuation.exit.i.i83:                  ; preds = %342, %335, %332
 
 popContinuation.exit84:                           ; preds = %325, %allocateContinuation.exit.i.i83
   store %struct.Continuation* %330, %struct.Continuation** %1, align 8, !tbaa !37
-  br label %1083
+  br label %1084
 
 ; <label>:348                                     ; preds = %retainVExp.exit82
   store %struct.VExp* null, %struct.VExp** %277, align 8, !tbaa !34
@@ -3797,13 +3798,13 @@ pushEvalContinuation.exit93:                      ; preds = %popContinuation.exi
   %386 = load %struct.Continuation** %1, align 8, !tbaa !37
   store %struct.Continuation* %386, %struct.Continuation** %381, align 8, !tbaa !15
   store %struct.Continuation* %380, %struct.Continuation** %1, align 8, !tbaa !37
-  br label %1083
+  br label %1084
 
 ; <label>:387                                     ; preds = %276
   %388 = getelementptr inbounds %struct.Value* %283, i64 0, i32 0
   %389 = load i32* %388, align 4, !tbaa !33
   %switch = icmp ult i32 %389, 2
-  br i1 %switch, label %390, label %1084
+  br i1 %switch, label %390, label %1085
 
 ; <label>:390                                     ; preds = %387
   %391 = icmp eq i32 %389, 1
@@ -3814,7 +3815,7 @@ pushEvalContinuation.exit93:                      ; preds = %popContinuation.exi
   %394 = bitcast %union.anon.0* %393 to i8**
   %395 = load i8** %394, align 8, !tbaa !1
   tail call void @setExceptionValue(%struct.Value* %v, i8* %395)
-  br label %1083
+  br label %1084
 
 ; <label>:396                                     ; preds = %390
   %397 = getelementptr inbounds %struct.Value* %283, i64 0, i32 1, i32 0, i32 0
@@ -3826,7 +3827,7 @@ pushEvalContinuation.exit93:                      ; preds = %popContinuation.exi
 
 ; <label>:402                                     ; preds = %396
   tail call void @setExceptionValue(%struct.Value* %v, i8* getelementptr inbounds ([52 x i8]* @.str43, i64 0, i64 0))
-  br label %1083
+  br label %1084
 
 ; <label>:403                                     ; preds = %396
   %404 = getelementptr inbounds %struct.VExp* %278, i64 0, i32 3, i32 0, i32 0
@@ -4067,13 +4068,13 @@ allocateContinuation.exit.i.i116:                 ; preds = %518, %511, %508
 
 popContinuation.exit117:                          ; preds = %retainVExp.exit100, %allocateContinuation.exit.i.i116
   store %struct.Continuation* %506, %struct.Continuation** %1, align 8, !tbaa !37
-  br label %1083
+  br label %1084
 
 ; <label>:524                                     ; preds = %276
   %525 = getelementptr inbounds %struct.Value* %283, i64 0, i32 0
   %526 = load i32* %525, align 4, !tbaa !33
   %switch25 = icmp ult i32 %526, 2
-  br i1 %switch25, label %527, label %1084
+  br i1 %switch25, label %527, label %1085
 
 ; <label>:527                                     ; preds = %524
   %528 = icmp eq i32 %526, 1
@@ -4084,7 +4085,7 @@ popContinuation.exit117:                          ; preds = %retainVExp.exit100,
   %531 = bitcast %union.anon.0* %530 to i8**
   %532 = load i8** %531, align 8, !tbaa !1
   tail call void @setExceptionValue(%struct.Value* %v, i8* %532)
-  br label %1083
+  br label %1084
 
 ; <label>:533                                     ; preds = %527
   %534 = getelementptr inbounds %struct.Value* %283, i64 0, i32 1, i32 0, i32 0
@@ -4096,7 +4097,7 @@ popContinuation.exit117:                          ; preds = %retainVExp.exit100,
 
 ; <label>:539                                     ; preds = %533
   tail call void @setExceptionValue(%struct.Value* %v, i8* getelementptr inbounds ([52 x i8]* @.str43, i64 0, i64 0))
-  br label %1083
+  br label %1084
 
 ; <label>:540                                     ; preds = %533
   %541 = getelementptr inbounds %struct.VExp* %278, i64 0, i32 3, i32 0, i32 0
@@ -4675,7 +4676,7 @@ neqNumber.exit:                                   ; preds = %892, %895, %901, %9
 
 ; <label>:913                                     ; preds = %909
   tail call void @setExceptionValue(%struct.Value* %v, i8* %910)
-  br label %1083
+  br label %1084
 
 ; <label>:914                                     ; preds = %leNumber.exit, %geNumber.exit, %nleNumber.exit, %ngeNumber.exit, %eqNumber.exit, %neqNumber.exit, %540
   %result_bool.0.ph.ph = phi i8 [ %743, %leNumber.exit ], [ %776, %geNumber.exit ], [ %809, %nleNumber.exit ], [ %842, %ngeNumber.exit ], [ %875, %eqNumber.exit ], [ %908, %neqNumber.exit ], [ undef, %540 ]
@@ -4776,13 +4777,13 @@ allocateContinuation.exit.i.i149:                 ; preds = %955, %948, %945
 
 popContinuation.exit150:                          ; preds = %936, %allocateContinuation.exit.i.i149
   store %struct.Continuation* %943, %struct.Continuation** %1, align 8, !tbaa !37
-  br label %1083
+  br label %1084
 
 ; <label>:961                                     ; preds = %276
   %962 = getelementptr inbounds %struct.Value* %283, i64 0, i32 0
   %963 = load i32* %962, align 4, !tbaa !33
   %switch26 = icmp ult i32 %963, 2
-  br i1 %switch26, label %964, label %1084
+  br i1 %switch26, label %964, label %1085
 
 ; <label>:964                                     ; preds = %961
   %965 = icmp eq i32 %963, 1
@@ -4793,7 +4794,7 @@ popContinuation.exit150:                          ; preds = %936, %allocateConti
   %968 = bitcast %union.anon.0* %967 to i8**
   %969 = load i8** %968, align 8, !tbaa !1
   tail call void @setExceptionValue(%struct.Value* %v, i8* %969)
-  br label %1083
+  br label %1084
 
 ; <label>:970                                     ; preds = %964
   %971 = getelementptr inbounds %struct.Value* %283, i64 0, i32 1, i32 0, i32 0
@@ -4805,7 +4806,7 @@ popContinuation.exit150:                          ; preds = %936, %allocateConti
 
 ; <label>:976                                     ; preds = %970
   tail call void @setExceptionValue(%struct.Value* %v, i8* getelementptr inbounds ([52 x i8]* @.str43, i64 0, i64 0))
-  br label %1083
+  br label %1084
 
 ; <label>:977                                     ; preds = %970
   %978 = getelementptr inbounds %struct.VExp* %972, i64 0, i32 3, i32 0, i32 0
@@ -4815,7 +4816,7 @@ popContinuation.exit150:                          ; preds = %936, %allocateConti
 
 ; <label>:981                                     ; preds = %977
   tail call void @setExceptionValue(%struct.Value* %v, i8* getelementptr inbounds ([44 x i8]* @.str44, i64 0, i64 0))
-  br label %1083
+  br label %1084
 
 ; <label>:982                                     ; preds = %977
   %983 = getelementptr inbounds %struct.VExp* %972, i64 0, i32 3, i32 0, i32 2
@@ -4862,167 +4863,169 @@ retainIntList.exit:                               ; preds = %982, %990
 
 newIntList.exit:                                  ; preds = %retainIntList.exit, %.loopexit.i.i140
   %1003 = phi %struct.IntList* [ %scevgep3.i.i139, %.loopexit.i.i140 ], [ %994, %retainIntList.exit ]
-  %1004 = getelementptr inbounds %struct.IntList* %1003, i64 0, i32 1
-  %1005 = load %struct.IntList** %1004, align 8, !tbaa !5
-  store %struct.IntList* %1005, %struct.IntList** @allocateIntList.pool, align 8, !tbaa !1
-  %1006 = getelementptr inbounds %struct.IntList* %1003, i64 0, i32 0
-  store i32 %985, i32* %1006, align 4, !tbaa !9
-  store %struct.IntList* %988, %struct.IntList** %1004, align 8, !tbaa !5
-  %1007 = load %struct.VExp** @allocateVExp.pool, align 8, !tbaa !1
-  %1008 = icmp eq %struct.VExp* %1007, null
-  br i1 %1008, label %1009, label %newVExpIntList.exit
+  %1004 = getelementptr inbounds %struct.IntList* %1003, i64 0, i32 2
+  store i32 1, i32* %1004, align 4, !tbaa !8
+  %1005 = getelementptr inbounds %struct.IntList* %1003, i64 0, i32 1
+  %1006 = load %struct.IntList** %1005, align 8, !tbaa !5
+  store %struct.IntList* %1006, %struct.IntList** @allocateIntList.pool, align 8, !tbaa !1
+  %1007 = getelementptr inbounds %struct.IntList* %1003, i64 0, i32 0
+  store i32 %985, i32* %1007, align 4, !tbaa !9
+  store %struct.IntList* %988, %struct.IntList** %1005, align 8, !tbaa !5
+  %1008 = load %struct.VExp** @allocateVExp.pool, align 8, !tbaa !1
+  %1009 = icmp eq %struct.VExp* %1008, null
+  br i1 %1009, label %1010, label %newVExpIntList.exit
 
-; <label>:1009                                    ; preds = %newIntList.exit
-  %1010 = tail call noalias i8* @malloc(i64 56000) #7
-  %1011 = bitcast i8* %1010 to %struct.VExp*
-  br label %1012
+; <label>:1010                                    ; preds = %newIntList.exit
+  %1011 = tail call noalias i8* @malloc(i64 56000) #7
+  %1012 = bitcast i8* %1011 to %struct.VExp*
+  br label %1013
 
-; <label>:1012                                    ; preds = %1012, %1009
-  %indvars.iv.i.i128 = phi i64 [ 0, %1009 ], [ %indvars.iv.next.i.i129, %1012 ]
-  %1013 = phi %struct.VExp* [ null, %1009 ], [ %1014, %1012 ]
-  %1014 = getelementptr inbounds %struct.VExp* %1011, i64 %indvars.iv.i.i128
-  %1015 = getelementptr inbounds %struct.VExp* %1011, i64 %indvars.iv.i.i128, i32 3
-  %1016 = bitcast %union.anon.1* %1015 to %struct.VExp**
-  store %struct.VExp* %1013, %struct.VExp** %1016, align 8, !tbaa !1
+; <label>:1013                                    ; preds = %1013, %1010
+  %indvars.iv.i.i128 = phi i64 [ 0, %1010 ], [ %indvars.iv.next.i.i129, %1013 ]
+  %1014 = phi %struct.VExp* [ null, %1010 ], [ %1015, %1013 ]
+  %1015 = getelementptr inbounds %struct.VExp* %1012, i64 %indvars.iv.i.i128
+  %1016 = getelementptr inbounds %struct.VExp* %1012, i64 %indvars.iv.i.i128, i32 3
+  %1017 = bitcast %union.anon.1* %1016 to %struct.VExp**
+  store %struct.VExp* %1014, %struct.VExp** %1017, align 8, !tbaa !1
   %indvars.iv.next.i.i129 = add nuw nsw i64 %indvars.iv.i.i128, 1
   %exitcond.i.i130 = icmp eq i64 %indvars.iv.next.i.i129, 1000
-  br i1 %exitcond.i.i130, label %.loopexit.i.i133, label %1012
+  br i1 %exitcond.i.i130, label %.loopexit.i.i133, label %1013
 
-.loopexit.i.i133:                                 ; preds = %1012
-  %scevgep.i.i131 = getelementptr i8* %1010, i64 55944
+.loopexit.i.i133:                                 ; preds = %1013
+  %scevgep.i.i131 = getelementptr i8* %1011, i64 55944
   %scevgep3.i.i132 = bitcast i8* %scevgep.i.i131 to %struct.VExp*
   store %struct.VExp* %scevgep3.i.i132, %struct.VExp** @allocateVExp.pool, align 8, !tbaa !1
   br label %newVExpIntList.exit
 
 newVExpIntList.exit:                              ; preds = %newIntList.exit, %.loopexit.i.i133
-  %1017 = phi %struct.VExp* [ %scevgep3.i.i132, %.loopexit.i.i133 ], [ %1007, %newIntList.exit ]
-  %1018 = getelementptr inbounds %struct.VExp* %1017, i64 0, i32 4
-  store i32 1, i32* %1018, align 4, !tbaa !23
-  %1019 = getelementptr inbounds %struct.VExp* %1017, i64 0, i32 3
-  %1020 = bitcast %union.anon.1* %1019 to %struct.VExp**
-  %1021 = load %struct.VExp** %1020, align 8, !tbaa !1
-  store %struct.VExp* %1021, %struct.VExp** @allocateVExp.pool, align 8, !tbaa !1
-  %1022 = getelementptr inbounds %struct.VExp* %1017, i64 0, i32 0
-  store i32 4, i32* %1022, align 4, !tbaa !25
-  %1023 = bitcast %union.anon.1* %1019 to %struct.IntList**
-  store %struct.IntList* %1003, %struct.IntList** %1023, align 8, !tbaa !21
-  %1024 = load %struct.VExp** %277, align 8, !tbaa !34
-  %1025 = tail call %struct.VExp* @releaseVExp(%struct.VExp* %1024) #7
-  store %struct.VExp* %1017, %struct.VExp** %277, align 8, !tbaa !34
-  %1026 = load %struct.VContext** %279, align 8, !tbaa !36
-  %1027 = tail call %struct.VContext* @releaseVContext(%struct.VContext* %1026) #7
+  %1018 = phi %struct.VExp* [ %scevgep3.i.i132, %.loopexit.i.i133 ], [ %1008, %newIntList.exit ]
+  %1019 = getelementptr inbounds %struct.VExp* %1018, i64 0, i32 4
+  store i32 1, i32* %1019, align 4, !tbaa !23
+  %1020 = getelementptr inbounds %struct.VExp* %1018, i64 0, i32 3
+  %1021 = bitcast %union.anon.1* %1020 to %struct.VExp**
+  %1022 = load %struct.VExp** %1021, align 8, !tbaa !1
+  store %struct.VExp* %1022, %struct.VExp** @allocateVExp.pool, align 8, !tbaa !1
+  %1023 = getelementptr inbounds %struct.VExp* %1018, i64 0, i32 0
+  store i32 4, i32* %1023, align 4, !tbaa !25
+  %1024 = bitcast %union.anon.1* %1020 to %struct.IntList**
+  store %struct.IntList* %1003, %struct.IntList** %1024, align 8, !tbaa !21
+  %1025 = load %struct.VExp** %277, align 8, !tbaa !34
+  %1026 = tail call %struct.VExp* @releaseVExp(%struct.VExp* %1025) #7
+  store %struct.VExp* %1018, %struct.VExp** %277, align 8, !tbaa !34
+  %1027 = load %struct.VContext** %279, align 8, !tbaa !36
+  %1028 = tail call %struct.VContext* @releaseVContext(%struct.VContext* %1027) #7
   store %struct.VContext* null, %struct.VContext** %279, align 8, !tbaa !36
-  %1028 = load %struct.Continuation** %1, align 8, !tbaa !37
-  %1029 = getelementptr inbounds %struct.Continuation* %1028, i64 0, i32 2
-  %1030 = load %struct.Continuation** %1029, align 8, !tbaa !15
-  %1031 = icmp eq %struct.Continuation* %1028, null
-  br i1 %1031, label %popContinuation.exit53, label %1032
+  %1029 = load %struct.Continuation** %1, align 8, !tbaa !37
+  %1030 = getelementptr inbounds %struct.Continuation* %1029, i64 0, i32 2
+  %1031 = load %struct.Continuation** %1030, align 8, !tbaa !15
+  %1032 = icmp eq %struct.Continuation* %1029, null
+  br i1 %1032, label %popContinuation.exit53, label %1033
 
-; <label>:1032                                    ; preds = %newVExpIntList.exit
-  %1033 = getelementptr inbounds %struct.Continuation* %1028, i64 0, i32 0
-  %1034 = load i32* %1033, align 4, !tbaa !17
-  switch i32 %1034, label %allocateContinuation.exit.i.i52 [
-    i32 0, label %1035
-    i32 1, label %1042
+; <label>:1033                                    ; preds = %newVExpIntList.exit
+  %1034 = getelementptr inbounds %struct.Continuation* %1029, i64 0, i32 0
+  %1035 = load i32* %1034, align 4, !tbaa !17
+  switch i32 %1035, label %allocateContinuation.exit.i.i52 [
+    i32 0, label %1036
+    i32 1, label %1043
   ]
 
-; <label>:1035                                    ; preds = %1032
-  %1036 = getelementptr inbounds %struct.Continuation* %1028, i64 0, i32 1, i32 0, i32 0
-  %1037 = load %struct.VExp** %1036, align 8, !tbaa !18
-  %1038 = tail call %struct.VExp* @releaseVExp(%struct.VExp* %1037) #7
-  %1039 = getelementptr inbounds %struct.Continuation* %1028, i64 0, i32 1, i32 0, i32 1
-  %1040 = load %struct.VContext** %1039, align 8, !tbaa !20
-  %1041 = tail call %struct.VContext* @releaseVContext(%struct.VContext* %1040) #7
+; <label>:1036                                    ; preds = %1033
+  %1037 = getelementptr inbounds %struct.Continuation* %1029, i64 0, i32 1, i32 0, i32 0
+  %1038 = load %struct.VExp** %1037, align 8, !tbaa !18
+  %1039 = tail call %struct.VExp* @releaseVExp(%struct.VExp* %1038) #7
+  %1040 = getelementptr inbounds %struct.Continuation* %1029, i64 0, i32 1, i32 0, i32 1
+  %1041 = load %struct.VContext** %1040, align 8, !tbaa !20
+  %1042 = tail call %struct.VContext* @releaseVContext(%struct.VContext* %1041) #7
   br label %allocateContinuation.exit.i.i52
 
-; <label>:1042                                    ; preds = %1032
-  %1043 = getelementptr inbounds %struct.Continuation* %1028, i64 0, i32 1
-  %1044 = bitcast %union.anon.8* %1043 to %struct.Value**
-  %1045 = load %struct.Value** %1044, align 8, !tbaa !21
-  %1046 = tail call %struct.Value* @releaseValue(%struct.Value* %1045) #7
+; <label>:1043                                    ; preds = %1033
+  %1044 = getelementptr inbounds %struct.Continuation* %1029, i64 0, i32 1
+  %1045 = bitcast %union.anon.8* %1044 to %struct.Value**
+  %1046 = load %struct.Value** %1045, align 8, !tbaa !21
+  %1047 = tail call %struct.Value* @releaseValue(%struct.Value* %1046) #7
   br label %allocateContinuation.exit.i.i52
 
-allocateContinuation.exit.i.i52:                  ; preds = %1042, %1035, %1032
-  %1047 = load %struct.Continuation** @allocateContinuation.pool, align 8, !tbaa !1
-  store %struct.Continuation* %1047, %struct.Continuation** %1029, align 8, !tbaa !15
-  store %struct.Continuation* %1028, %struct.Continuation** @allocateContinuation.pool, align 8, !tbaa !1
+allocateContinuation.exit.i.i52:                  ; preds = %1043, %1036, %1033
+  %1048 = load %struct.Continuation** @allocateContinuation.pool, align 8, !tbaa !1
+  store %struct.Continuation* %1048, %struct.Continuation** %1030, align 8, !tbaa !15
+  store %struct.Continuation* %1029, %struct.Continuation** @allocateContinuation.pool, align 8, !tbaa !1
   br label %popContinuation.exit53
 
 popContinuation.exit53:                           ; preds = %newVExpIntList.exit, %allocateContinuation.exit.i.i52
-  store %struct.Continuation* %1030, %struct.Continuation** %1, align 8, !tbaa !37
-  br label %1083
-
-; <label>:1048                                    ; preds = %276
-  %1049 = call %struct.VExp* @appendSyscallArg(%struct.VExp* %278, %struct.Value* %283, i8** %error_message, %struct.Value** %to_resolve)
-  %1050 = icmp eq %struct.VExp* %1049, null
-  br i1 %1050, label %1051, label %1058
-
-; <label>:1051                                    ; preds = %1048
-  %1052 = load i8** %error_message, align 8, !tbaa !1
-  %1053 = icmp eq i8* %1052, null
-  br i1 %1053, label %1055, label %1054
-
-; <label>:1054                                    ; preds = %1051
-  tail call void @setExceptionValue(%struct.Value* %v, i8* %1052)
-  br label %1083
-
-; <label>:1055                                    ; preds = %1051
-  %1056 = load %struct.Value** %to_resolve, align 8, !tbaa !1
-  %1057 = icmp eq %struct.Value* %1056, null
-  br i1 %1057, label %1083, label %1084
-
-; <label>:1058                                    ; preds = %1048
-  %1059 = load %struct.VExp** %277, align 8, !tbaa !34
-  %1060 = tail call %struct.VExp* @releaseVExp(%struct.VExp* %1059) #7
-  store %struct.VExp* %1049, %struct.VExp** %277, align 8, !tbaa !34
-  %1061 = load %struct.VContext** %279, align 8, !tbaa !36
-  %1062 = tail call %struct.VContext* @releaseVContext(%struct.VContext* %1061) #7
-  store %struct.VContext* null, %struct.VContext** %279, align 8, !tbaa !36
-  %1063 = load %struct.Continuation** %1, align 8, !tbaa !37
-  %1064 = getelementptr inbounds %struct.Continuation* %1063, i64 0, i32 2
-  %1065 = load %struct.Continuation** %1064, align 8, !tbaa !15
-  %1066 = icmp eq %struct.Continuation* %1063, null
-  br i1 %1066, label %popContinuation.exit, label %1067
-
-; <label>:1067                                    ; preds = %1058
-  %1068 = getelementptr inbounds %struct.Continuation* %1063, i64 0, i32 0
-  %1069 = load i32* %1068, align 4, !tbaa !17
-  switch i32 %1069, label %allocateContinuation.exit.i.i [
-    i32 0, label %1070
-    i32 1, label %1077
-  ]
-
-; <label>:1070                                    ; preds = %1067
-  %1071 = getelementptr inbounds %struct.Continuation* %1063, i64 0, i32 1, i32 0, i32 0
-  %1072 = load %struct.VExp** %1071, align 8, !tbaa !18
-  %1073 = tail call %struct.VExp* @releaseVExp(%struct.VExp* %1072) #7
-  %1074 = getelementptr inbounds %struct.Continuation* %1063, i64 0, i32 1, i32 0, i32 1
-  %1075 = load %struct.VContext** %1074, align 8, !tbaa !20
-  %1076 = tail call %struct.VContext* @releaseVContext(%struct.VContext* %1075) #7
-  br label %allocateContinuation.exit.i.i
-
-; <label>:1077                                    ; preds = %1067
-  %1078 = getelementptr inbounds %struct.Continuation* %1063, i64 0, i32 1
-  %1079 = bitcast %union.anon.8* %1078 to %struct.Value**
-  %1080 = load %struct.Value** %1079, align 8, !tbaa !21
-  %1081 = tail call %struct.Value* @releaseValue(%struct.Value* %1080) #7
-  br label %allocateContinuation.exit.i.i
-
-allocateContinuation.exit.i.i:                    ; preds = %1077, %1070, %1067
-  %1082 = load %struct.Continuation** @allocateContinuation.pool, align 8, !tbaa !1
-  store %struct.Continuation* %1082, %struct.Continuation** %1064, align 8, !tbaa !15
-  store %struct.Continuation* %1063, %struct.Continuation** @allocateContinuation.pool, align 8, !tbaa !1
-  br label %popContinuation.exit
-
-popContinuation.exit:                             ; preds = %1058, %allocateContinuation.exit.i.i
-  store %struct.Continuation* %1065, %struct.Continuation** %1, align 8, !tbaa !37
-  br label %1083
-
-; <label>:1083                                    ; preds = %276, %6, %54, %1055, %pushEvalContinuation.exit73, %popContinuation.exit32, %108, %286, %402, %popContinuation.exit117, %392, %976, %popContinuation.exit53, %981, %966, %popContinuation.exit, %1054, %529, %913, %popContinuation.exit150, %539, %popContinuation.exit84, %pushEvalContinuation.exit93, %4
+  store %struct.Continuation* %1031, %struct.Continuation** %1, align 8, !tbaa !37
   br label %1084
 
-; <label>:1084                                    ; preds = %961, %524, %387, %1055, %lookUpRef.exit, %1083
-  %.0 = phi %struct.Value* [ null, %1083 ], [ %64, %lookUpRef.exit ], [ %283, %387 ], [ %283, %524 ], [ %283, %961 ], [ %1056, %1055 ]
+; <label>:1049                                    ; preds = %276
+  %1050 = call %struct.VExp* @appendSyscallArg(%struct.VExp* %278, %struct.Value* %283, i8** %error_message, %struct.Value** %to_resolve)
+  %1051 = icmp eq %struct.VExp* %1050, null
+  br i1 %1051, label %1052, label %1059
+
+; <label>:1052                                    ; preds = %1049
+  %1053 = load i8** %error_message, align 8, !tbaa !1
+  %1054 = icmp eq i8* %1053, null
+  br i1 %1054, label %1056, label %1055
+
+; <label>:1055                                    ; preds = %1052
+  tail call void @setExceptionValue(%struct.Value* %v, i8* %1053)
+  br label %1084
+
+; <label>:1056                                    ; preds = %1052
+  %1057 = load %struct.Value** %to_resolve, align 8, !tbaa !1
+  %1058 = icmp eq %struct.Value* %1057, null
+  br i1 %1058, label %1084, label %1085
+
+; <label>:1059                                    ; preds = %1049
+  %1060 = load %struct.VExp** %277, align 8, !tbaa !34
+  %1061 = tail call %struct.VExp* @releaseVExp(%struct.VExp* %1060) #7
+  store %struct.VExp* %1050, %struct.VExp** %277, align 8, !tbaa !34
+  %1062 = load %struct.VContext** %279, align 8, !tbaa !36
+  %1063 = tail call %struct.VContext* @releaseVContext(%struct.VContext* %1062) #7
+  store %struct.VContext* null, %struct.VContext** %279, align 8, !tbaa !36
+  %1064 = load %struct.Continuation** %1, align 8, !tbaa !37
+  %1065 = getelementptr inbounds %struct.Continuation* %1064, i64 0, i32 2
+  %1066 = load %struct.Continuation** %1065, align 8, !tbaa !15
+  %1067 = icmp eq %struct.Continuation* %1064, null
+  br i1 %1067, label %popContinuation.exit, label %1068
+
+; <label>:1068                                    ; preds = %1059
+  %1069 = getelementptr inbounds %struct.Continuation* %1064, i64 0, i32 0
+  %1070 = load i32* %1069, align 4, !tbaa !17
+  switch i32 %1070, label %allocateContinuation.exit.i.i [
+    i32 0, label %1071
+    i32 1, label %1078
+  ]
+
+; <label>:1071                                    ; preds = %1068
+  %1072 = getelementptr inbounds %struct.Continuation* %1064, i64 0, i32 1, i32 0, i32 0
+  %1073 = load %struct.VExp** %1072, align 8, !tbaa !18
+  %1074 = tail call %struct.VExp* @releaseVExp(%struct.VExp* %1073) #7
+  %1075 = getelementptr inbounds %struct.Continuation* %1064, i64 0, i32 1, i32 0, i32 1
+  %1076 = load %struct.VContext** %1075, align 8, !tbaa !20
+  %1077 = tail call %struct.VContext* @releaseVContext(%struct.VContext* %1076) #7
+  br label %allocateContinuation.exit.i.i
+
+; <label>:1078                                    ; preds = %1068
+  %1079 = getelementptr inbounds %struct.Continuation* %1064, i64 0, i32 1
+  %1080 = bitcast %union.anon.8* %1079 to %struct.Value**
+  %1081 = load %struct.Value** %1080, align 8, !tbaa !21
+  %1082 = tail call %struct.Value* @releaseValue(%struct.Value* %1081) #7
+  br label %allocateContinuation.exit.i.i
+
+allocateContinuation.exit.i.i:                    ; preds = %1078, %1071, %1068
+  %1083 = load %struct.Continuation** @allocateContinuation.pool, align 8, !tbaa !1
+  store %struct.Continuation* %1083, %struct.Continuation** %1065, align 8, !tbaa !15
+  store %struct.Continuation* %1064, %struct.Continuation** @allocateContinuation.pool, align 8, !tbaa !1
+  br label %popContinuation.exit
+
+popContinuation.exit:                             ; preds = %1059, %allocateContinuation.exit.i.i
+  store %struct.Continuation* %1066, %struct.Continuation** %1, align 8, !tbaa !37
+  br label %1084
+
+; <label>:1084                                    ; preds = %276, %6, %54, %1056, %pushEvalContinuation.exit73, %popContinuation.exit32, %108, %286, %402, %popContinuation.exit117, %392, %976, %popContinuation.exit53, %981, %966, %popContinuation.exit, %1055, %529, %913, %popContinuation.exit150, %539, %popContinuation.exit84, %pushEvalContinuation.exit93, %4
+  br label %1085
+
+; <label>:1085                                    ; preds = %961, %524, %387, %1056, %lookUpRef.exit, %1084
+  %.0 = phi %struct.Value* [ null, %1084 ], [ %64, %lookUpRef.exit ], [ %283, %387 ], [ %283, %524 ], [ %283, %961 ], [ %1057, %1056 ]
   ret %struct.Value* %.0
 }
 
@@ -5149,242 +5152,243 @@ popValueStack.exit:                               ; preds = %.backedge
 
 ; Function Attrs: nounwind uwtable
 define i32 @executeValue(%struct.Value* %v, i32 %argc, i8** nocapture readonly %args) #1 {
-  %1 = icmp sgt i32 %argc, 0
-  br i1 %1, label %2, label %4
+  %1 = icmp sgt i32 %argc, 1
+  br i1 %1, label %2, label %5
 
 ; <label>:2                                       ; preds = %0
-  %3 = load i8** %args, align 8, !tbaa !1
-  br label %4
+  %3 = getelementptr inbounds i8** %args, i64 1
+  %4 = load i8** %3, align 8, !tbaa !1
+  br label %5
 
-; <label>:4                                       ; preds = %2, %0
-  %cur_arg.0 = phi i8* [ %3, %2 ], [ null, %0 ]
-  %5 = tail call noalias i8* @malloc(i64 16) #7
-  %6 = bitcast i8* %5 to %struct._IO_FILE**
-  %7 = load %struct._IO_FILE** @stdin, align 8, !tbaa !1
-  store %struct._IO_FILE* %7, %struct._IO_FILE** %6, align 8, !tbaa !1
-  %8 = load %struct._IO_FILE** @stdout, align 8, !tbaa !1
-  %9 = getelementptr inbounds i8* %5, i64 8
-  %10 = bitcast i8* %9 to %struct._IO_FILE**
-  store %struct._IO_FILE* %8, %struct._IO_FILE** %10, align 8, !tbaa !1
+; <label>:5                                       ; preds = %2, %0
+  %cur_arg.0 = phi i8* [ %4, %2 ], [ null, %0 ]
+  %6 = tail call noalias i8* @malloc(i64 16) #7
+  %7 = bitcast i8* %6 to %struct._IO_FILE**
+  %8 = load %struct._IO_FILE** @stdin, align 8, !tbaa !1
+  store %struct._IO_FILE* %8, %struct._IO_FILE** %7, align 8, !tbaa !1
+  %9 = load %struct._IO_FILE** @stdout, align 8, !tbaa !1
+  %10 = getelementptr inbounds i8* %6, i64 8
+  %11 = bitcast i8* %10 to %struct._IO_FILE**
+  store %struct._IO_FILE* %9, %struct._IO_FILE** %11, align 8, !tbaa !1
   br label %.backedge
 
-.backedge:                                        ; preds = %retainValue.exit, %pushApplyContinuation.exit, %4
-  %files_buflen.0 = phi i32 [ 2, %4 ], [ %files_buflen.2, %pushApplyContinuation.exit ], [ %files_buflen.2, %retainValue.exit ]
-  %files.0 = phi %struct._IO_FILE** [ %6, %4 ], [ %files.2, %pushApplyContinuation.exit ], [ %files.2, %retainValue.exit ]
-  %cur_arg.1 = phi i8* [ %cur_arg.0, %4 ], [ %cur_arg.2, %pushApplyContinuation.exit ], [ %cur_arg.2, %retainValue.exit ]
-  %cur_argi.0 = phi i32 [ 0, %4 ], [ %cur_argi.1, %pushApplyContinuation.exit ], [ %cur_argi.1, %retainValue.exit ]
-  %.0 = phi %struct.Value* [ %v, %4 ], [ %285, %pushApplyContinuation.exit ], [ %214, %retainValue.exit ]
-  %11 = bitcast %struct._IO_FILE** %files.0 to i8*
-  %12 = getelementptr inbounds %struct.Value* %.0, i64 0, i32 0
-  %13 = load i32* %12, align 4, !tbaa !33
-  %switch = icmp ult i32 %13, 2
-  br i1 %switch, label %15, label %14
+.backedge:                                        ; preds = %retainValue.exit, %pushApplyContinuation.exit, %5
+  %files_buflen.0 = phi i32 [ 2, %5 ], [ %files_buflen.2, %pushApplyContinuation.exit ], [ %files_buflen.2, %retainValue.exit ]
+  %files.0 = phi %struct._IO_FILE** [ %7, %5 ], [ %files.2, %pushApplyContinuation.exit ], [ %files.2, %retainValue.exit ]
+  %cur_arg.1 = phi i8* [ %cur_arg.0, %5 ], [ %cur_arg.2, %pushApplyContinuation.exit ], [ %cur_arg.2, %retainValue.exit ]
+  %cur_argi.0 = phi i32 [ 1, %5 ], [ %cur_argi.1, %pushApplyContinuation.exit ], [ %cur_argi.1, %retainValue.exit ]
+  %.0 = phi %struct.Value* [ %v, %5 ], [ %286, %pushApplyContinuation.exit ], [ %215, %retainValue.exit ]
+  %12 = bitcast %struct._IO_FILE** %files.0 to i8*
+  %13 = getelementptr inbounds %struct.Value* %.0, i64 0, i32 0
+  %14 = load i32* %13, align 4, !tbaa !33
+  %switch = icmp ult i32 %14, 2
+  br i1 %switch, label %16, label %15
 
-; <label>:14                                      ; preds = %.backedge
+; <label>:15                                      ; preds = %.backedge
   tail call void @resolveAllValue(%struct.Value* %.0)
-  %.pr = load i32* %12, align 4, !tbaa !33
-  br label %15
+  %.pr = load i32* %13, align 4, !tbaa !33
+  br label %16
 
-; <label>:15                                      ; preds = %.backedge, %14
-  %16 = phi i32 [ %13, %.backedge ], [ %.pr, %14 ]
-  %17 = icmp eq i32 %16, 1
-  %18 = getelementptr inbounds %struct.Value* %.0, i64 0, i32 1
-  br i1 %17, label %19, label %23
+; <label>:16                                      ; preds = %.backedge, %15
+  %17 = phi i32 [ %14, %.backedge ], [ %.pr, %15 ]
+  %18 = icmp eq i32 %17, 1
+  %19 = getelementptr inbounds %struct.Value* %.0, i64 0, i32 1
+  br i1 %18, label %20, label %24
 
-; <label>:19                                      ; preds = %15
-  %20 = bitcast %union.anon.0* %18 to i8**
-  %21 = load i8** %20, align 8, !tbaa !1
-  %22 = tail call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([15 x i8]* @.str45, i64 0, i64 0), i8* %21) #7
-  br label %310
+; <label>:20                                      ; preds = %16
+  %21 = bitcast %union.anon.0* %19 to i8**
+  %22 = load i8** %21, align 8, !tbaa !1
+  %23 = tail call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([15 x i8]* @.str45, i64 0, i64 0), i8* %22) #7
+  br label %311
 
-; <label>:23                                      ; preds = %15
-  %24 = getelementptr inbounds %union.anon.0* %18, i64 0, i32 0, i32 0
-  %25 = load %struct.VExp** %24, align 8, !tbaa !18
-  %26 = getelementptr inbounds %struct.VExp* %25, i64 0, i32 0
-  %27 = load i32* %26, align 4, !tbaa !25
-  %28 = icmp eq i32 %27, 5
-  br i1 %28, label %31, label %29
+; <label>:24                                      ; preds = %16
+  %25 = getelementptr inbounds %union.anon.0* %19, i64 0, i32 0, i32 0
+  %26 = load %struct.VExp** %25, align 8, !tbaa !18
+  %27 = getelementptr inbounds %struct.VExp* %26, i64 0, i32 0
+  %28 = load i32* %27, align 4, !tbaa !25
+  %29 = icmp eq i32 %28, 5
+  br i1 %29, label %32, label %30
 
-; <label>:29                                      ; preds = %23
-  %30 = load %struct._IO_FILE** @stdout, align 8, !tbaa !1
-  tail call void @displayExpRecursive(%struct._IO_FILE* %30, %struct.VExp* %25, i32 0) #7
+; <label>:30                                      ; preds = %24
+  %31 = load %struct._IO_FILE** @stdout, align 8, !tbaa !1
+  tail call void @displayExpRecursive(%struct._IO_FILE* %31, %struct.VExp* %26, i32 0) #7
   %putchar = tail call i32 @putchar(i32 10) #7
-  br label %310
+  br label %311
 
-; <label>:31                                      ; preds = %23
-  %32 = getelementptr inbounds %struct.VExp* %25, i64 0, i32 3, i32 0, i32 0
-  %33 = load i32* %32, align 4, !tbaa !28
-  %34 = zext i32 %33 to i64
-  %35 = getelementptr inbounds [8 x [4 x i32]]* @syscall_arginfo, i64 0, i64 %34, i64 0
-  %36 = load i32* %35, align 16, !tbaa !29
-  %37 = getelementptr inbounds %struct.VExp* %25, i64 0, i32 3, i32 0, i32 1
-  %38 = load i32* %37, align 4, !tbaa !26
-  %39 = icmp sgt i32 %36, %38
-  br i1 %39, label %40, label %41
+; <label>:32                                      ; preds = %24
+  %33 = getelementptr inbounds %struct.VExp* %26, i64 0, i32 3, i32 0, i32 0
+  %34 = load i32* %33, align 4, !tbaa !28
+  %35 = zext i32 %34 to i64
+  %36 = getelementptr inbounds [8 x [4 x i32]]* @syscall_arginfo, i64 0, i64 %35, i64 0
+  %37 = load i32* %36, align 16, !tbaa !29
+  %38 = getelementptr inbounds %struct.VExp* %26, i64 0, i32 3, i32 0, i32 1
+  %39 = load i32* %38, align 4, !tbaa !26
+  %40 = icmp sgt i32 %37, %39
+  br i1 %40, label %41, label %42
 
-; <label>:40                                      ; preds = %31
+; <label>:41                                      ; preds = %32
   %puts = tail call i32 @puts(i8* getelementptr inbounds ([45 x i8]* @str, i64 0, i64 0)) #7
-  br label %310
+  br label %311
 
-; <label>:41                                      ; preds = %31
-  switch i32 %33, label %.critedge [
-    i32 0, label %42
-    i32 1, label %46
-    i32 3, label %119
-    i32 4, label %132
-    i32 5, label %148
-    i32 6, label %164
-    i32 2, label %179
-    i32 7, label %192
+; <label>:42                                      ; preds = %32
+  switch i32 %34, label %.critedge [
+    i32 0, label %43
+    i32 1, label %47
+    i32 3, label %120
+    i32 4, label %133
+    i32 5, label %149
+    i32 6, label %165
+    i32 2, label %180
+    i32 7, label %193
   ]
 
-; <label>:42                                      ; preds = %41
-  %43 = getelementptr inbounds %struct.VExp* %25, i64 0, i32 3, i32 0, i32 2
-  %44 = bitcast %union.SyscallArg* %43 to i32*
-  %45 = load i32* %44, align 4, !tbaa !29
-  br label %310
+; <label>:43                                      ; preds = %42
+  %44 = getelementptr inbounds %struct.VExp* %26, i64 0, i32 3, i32 0, i32 2
+  %45 = bitcast %union.SyscallArg* %44 to i32*
+  %46 = load i32* %45, align 4, !tbaa !29
+  br label %311
 
-; <label>:46                                      ; preds = %41
-  %47 = getelementptr inbounds %struct.VExp* %25, i64 0, i32 3, i32 0, i32 3
-  %48 = load i32* %47, align 4, !tbaa !43
-  %49 = icmp ult i32 %48, 4
-  br i1 %49, label %50, label %.critedge
+; <label>:47                                      ; preds = %42
+  %48 = getelementptr inbounds %struct.VExp* %26, i64 0, i32 3, i32 0, i32 3
+  %49 = load i32* %48, align 4, !tbaa !43
+  %50 = icmp ult i32 %49, 4
+  br i1 %50, label %51, label %.critedge
 
-; <label>:50                                      ; preds = %46
-  %51 = sext i32 %48 to i64
-  %switch.gep = getelementptr inbounds [4 x i8*]* @switch.table, i64 0, i64 %51
+; <label>:51                                      ; preds = %47
+  %52 = sext i32 %49 to i64
+  %switch.gep = getelementptr inbounds [4 x i8*]* @switch.table, i64 0, i64 %52
   %switch.load = load i8** %switch.gep, align 8
-  %52 = getelementptr inbounds %struct.VExp* %25, i64 0, i32 3, i32 0, i32 2, i32 0
-  %53 = load %struct.IntList** %52, align 8, !tbaa !1
-  %54 = icmp eq %struct.IntList* %53, null
-  br i1 %54, label %.thread.i, label %.lr.ph7.i
+  %53 = getelementptr inbounds %struct.VExp* %26, i64 0, i32 3, i32 0, i32 2, i32 0
+  %54 = load %struct.IntList** %53, align 8, !tbaa !1
+  %55 = icmp eq %struct.IntList* %54, null
+  br i1 %55, label %.thread.i, label %.lr.ph7.i
 
-.thread.i:                                        ; preds = %50
-  %55 = tail call noalias i8* @malloc(i64 1) #7
+.thread.i:                                        ; preds = %51
+  %56 = tail call noalias i8* @malloc(i64 1) #7
   br label %convertIntListToString.exit
 
-.lr.ph7.i:                                        ; preds = %50, %.lr.ph7.i
-  %l.05.i = phi i32 [ %phitmp.i, %.lr.ph7.i ], [ 1, %50 ]
-  %p.04.i = phi %struct.IntList* [ %57, %.lr.ph7.i ], [ %53, %50 ]
-  %56 = getelementptr inbounds %struct.IntList* %p.04.i, i64 0, i32 1
-  %57 = load %struct.IntList** %56, align 8, !tbaa !5
+.lr.ph7.i:                                        ; preds = %51, %.lr.ph7.i
+  %l.05.i = phi i32 [ %phitmp.i, %.lr.ph7.i ], [ 1, %51 ]
+  %p.04.i = phi %struct.IntList* [ %58, %.lr.ph7.i ], [ %54, %51 ]
+  %57 = getelementptr inbounds %struct.IntList* %p.04.i, i64 0, i32 1
+  %58 = load %struct.IntList** %57, align 8, !tbaa !5
   %phitmp.i = add i32 %l.05.i, 1
-  %58 = icmp eq %struct.IntList* %57, null
-  br i1 %58, label %.lr.ph.i.preheader, label %.lr.ph7.i
+  %59 = icmp eq %struct.IntList* %58, null
+  br i1 %59, label %.lr.ph.i.preheader, label %.lr.ph7.i
 
 .lr.ph.i.preheader:                               ; preds = %.lr.ph7.i
   %phitmp10.i = sext i32 %phitmp.i to i64
-  %59 = tail call noalias i8* @malloc(i64 %phitmp10.i) #7
+  %60 = tail call noalias i8* @malloc(i64 %phitmp10.i) #7
   br label %.lr.ph.i
 
 .lr.ph.i:                                         ; preds = %.lr.ph.i.preheader, %.lr.ph.i
   %indvars.iv.i = phi i64 [ %indvars.iv.next.i, %.lr.ph.i ], [ 0, %.lr.ph.i.preheader ]
-  %p1.03.i = phi %struct.IntList* [ %66, %.lr.ph.i ], [ %53, %.lr.ph.i.preheader ]
-  %i.02.i = phi i32 [ %64, %.lr.ph.i ], [ 0, %.lr.ph.i.preheader ]
-  %60 = getelementptr inbounds %struct.IntList* %p1.03.i, i64 0, i32 0
-  %61 = load i32* %60, align 4, !tbaa !9
-  %62 = trunc i32 %61 to i8
-  %63 = getelementptr inbounds i8* %59, i64 %indvars.iv.i
-  store i8 %62, i8* %63, align 1, !tbaa !10
+  %p1.03.i = phi %struct.IntList* [ %67, %.lr.ph.i ], [ %54, %.lr.ph.i.preheader ]
+  %i.02.i = phi i32 [ %65, %.lr.ph.i ], [ 0, %.lr.ph.i.preheader ]
+  %61 = getelementptr inbounds %struct.IntList* %p1.03.i, i64 0, i32 0
+  %62 = load i32* %61, align 4, !tbaa !9
+  %63 = trunc i32 %62 to i8
+  %64 = getelementptr inbounds i8* %60, i64 %indvars.iv.i
+  store i8 %63, i8* %64, align 1, !tbaa !10
   %indvars.iv.next.i = add nuw nsw i64 %indvars.iv.i, 1
-  %64 = add nsw i32 %i.02.i, 1
-  %65 = getelementptr inbounds %struct.IntList* %p1.03.i, i64 0, i32 1
-  %66 = load %struct.IntList** %65, align 8, !tbaa !5
-  %67 = icmp eq %struct.IntList* %66, null
-  br i1 %67, label %._crit_edge.i, label %.lr.ph.i
+  %65 = add nsw i32 %i.02.i, 1
+  %66 = getelementptr inbounds %struct.IntList* %p1.03.i, i64 0, i32 1
+  %67 = load %struct.IntList** %66, align 8, !tbaa !5
+  %68 = icmp eq %struct.IntList* %67, null
+  br i1 %68, label %._crit_edge.i, label %.lr.ph.i
 
 ._crit_edge.i:                                    ; preds = %.lr.ph.i
-  %phitmp11.i = sext i32 %64 to i64
+  %phitmp11.i = sext i32 %65 to i64
   br label %convertIntListToString.exit
 
 convertIntListToString.exit:                      ; preds = %.thread.i, %._crit_edge.i
-  %68 = phi i8* [ %59, %._crit_edge.i ], [ %55, %.thread.i ]
+  %69 = phi i8* [ %60, %._crit_edge.i ], [ %56, %.thread.i ]
   %i.0.lcssa.i = phi i64 [ %phitmp11.i, %._crit_edge.i ], [ 0, %.thread.i ]
-  %69 = getelementptr inbounds i8* %68, i64 %i.0.lcssa.i
-  store i8 0, i8* %69, align 1, !tbaa !10
-  %70 = tail call %struct._IO_FILE* @fopen(i8* %68, i8* %switch.load) #7
-  tail call void @free(i8* %68) #7
-  %71 = icmp eq %struct._IO_FILE* %70, null
-  br i1 %71, label %.critedge, label %.preheader
+  %70 = getelementptr inbounds i8* %69, i64 %i.0.lcssa.i
+  store i8 0, i8* %70, align 1, !tbaa !10
+  %71 = tail call %struct._IO_FILE* @fopen(i8* %69, i8* %switch.load) #7
+  tail call void @free(i8* %69) #7
+  %72 = icmp eq %struct._IO_FILE* %71, null
+  br i1 %72, label %.critedge, label %.preheader
 
 .preheader:                                       ; preds = %convertIntListToString.exit
-  %72 = icmp sgt i32 %files_buflen.0, 0
-  br i1 %72, label %.lr.ph, label %.thread44.thread
+  %73 = icmp sgt i32 %files_buflen.0, 0
+  br i1 %73, label %.lr.ph, label %.thread44.thread
 
 .thread44.thread:                                 ; preds = %.preheader
-  %73 = sext i32 %files_buflen.0 to i64
-  %74 = shl nsw i64 %73, 4
-  %75 = tail call i8* @realloc(i8* %11, i64 %74) #7
-  %76 = bitcast i8* %75 to %struct._IO_FILE**
+  %74 = sext i32 %files_buflen.0 to i64
+  %75 = shl nsw i64 %74, 4
+  %76 = tail call i8* @realloc(i8* %12, i64 %75) #7
+  %77 = bitcast i8* %76 to %struct._IO_FILE**
   br label %.loopexit.thread
 
-; <label>:77                                      ; preds = %.lr.ph
-  %78 = add nsw i32 %i.048, 1
-  %79 = trunc i64 %indvars.iv.next to i32
-  %80 = icmp slt i32 %79, %files_buflen.0
-  br i1 %80, label %.lr.ph, label %.thread44
+; <label>:78                                      ; preds = %.lr.ph
+  %79 = add nsw i32 %i.048, 1
+  %80 = trunc i64 %indvars.iv.next to i32
+  %81 = icmp slt i32 %80, %files_buflen.0
+  br i1 %81, label %.lr.ph, label %.thread44
 
-.lr.ph:                                           ; preds = %.preheader, %77
-  %indvars.iv = phi i64 [ %indvars.iv.next, %77 ], [ 0, %.preheader ]
-  %i.048 = phi i32 [ %78, %77 ], [ 0, %.preheader ]
-  %81 = getelementptr inbounds %struct._IO_FILE** %files.0, i64 %indvars.iv
-  %82 = load %struct._IO_FILE** %81, align 8, !tbaa !1
-  %83 = icmp eq %struct._IO_FILE* %82, null
+.lr.ph:                                           ; preds = %.preheader, %78
+  %indvars.iv = phi i64 [ %indvars.iv.next, %78 ], [ 0, %.preheader ]
+  %i.048 = phi i32 [ %79, %78 ], [ 0, %.preheader ]
+  %82 = getelementptr inbounds %struct._IO_FILE** %files.0, i64 %indvars.iv
+  %83 = load %struct._IO_FILE** %82, align 8, !tbaa !1
+  %84 = icmp eq %struct._IO_FILE* %83, null
   %indvars.iv.next = add nuw nsw i64 %indvars.iv, 1
-  br i1 %83, label %84, label %77
+  br i1 %84, label %85, label %78
 
-; <label>:84                                      ; preds = %.lr.ph
-  %85 = icmp eq i32 %i.048, -1
-  br i1 %85, label %.thread44, label %116
+; <label>:85                                      ; preds = %.lr.ph
+  %86 = icmp eq i32 %i.048, -1
+  br i1 %86, label %.thread44, label %117
 
-.thread44:                                        ; preds = %77, %84
-  %86 = bitcast %struct._IO_FILE** %files.0 to i8*
-  %87 = sext i32 %files_buflen.0 to i64
-  %88 = shl nsw i64 %87, 4
-  %89 = tail call i8* @realloc(i8* %86, i64 %88) #7
-  %90 = bitcast i8* %89 to %struct._IO_FILE**
-  br i1 %72, label %.lr.ph50.preheader, label %.loopexit.thread
+.thread44:                                        ; preds = %78, %85
+  %87 = bitcast %struct._IO_FILE** %files.0 to i8*
+  %88 = sext i32 %files_buflen.0 to i64
+  %89 = shl nsw i64 %88, 4
+  %90 = tail call i8* @realloc(i8* %87, i64 %89) #7
+  %91 = bitcast i8* %90 to %struct._IO_FILE**
+  br i1 %73, label %.lr.ph50.preheader, label %.loopexit.thread
 
 .lr.ph50.preheader:                               ; preds = %.thread44
-  %91 = add i32 %files_buflen.0, -1
-  %92 = zext i32 %91 to i64
-  %93 = add i64 %92, 1
-  %end.idx = add i64 %92, 1
-  %n.vec = and i64 %93, 8589934588
+  %92 = add i32 %files_buflen.0, -1
+  %93 = zext i32 %92 to i64
+  %94 = add i64 %93, 1
+  %end.idx = add i64 %93, 1
+  %n.vec = and i64 %94, 8589934588
   %cmp.zero = icmp eq i64 %n.vec, 0
-  %94 = add i32 %files_buflen.0, -1
-  %95 = zext i32 %94 to i64
+  %95 = add i32 %files_buflen.0, -1
+  %96 = zext i32 %95 to i64
   br i1 %cmp.zero, label %middle.block, label %vector.memcheck
 
 vector.memcheck:                                  ; preds = %.lr.ph50.preheader
-  %scevgep111 = getelementptr %struct._IO_FILE** %files.0, i64 %95
-  %96 = shl nuw nsw i64 %95, 3
+  %scevgep111 = getelementptr %struct._IO_FILE** %files.0, i64 %96
+  %97 = shl nuw nsw i64 %96, 3
   %scevgep111112 = bitcast %struct._IO_FILE** %scevgep111 to i8*
-  %scevgep110 = getelementptr i8* %89, i64 %96
-  %bound1 = icmp ule i8* %11, %scevgep110
-  %bound0 = icmp ule i8* %89, %scevgep111112
+  %scevgep110 = getelementptr i8* %90, i64 %97
+  %bound1 = icmp ule i8* %12, %scevgep110
+  %bound0 = icmp ule i8* %90, %scevgep111112
   %memcheck.conflict = and i1 %bound0, %bound1
   br i1 %memcheck.conflict, label %middle.block, label %vector.body
 
 vector.body:                                      ; preds = %vector.memcheck, %vector.body
   %index = phi i64 [ %index.next, %vector.body ], [ 0, %vector.memcheck ]
-  %97 = getelementptr inbounds %struct._IO_FILE** %files.0, i64 %index
-  %98 = bitcast %struct._IO_FILE** %97 to <2 x %struct._IO_FILE*>*
-  %wide.load = load <2 x %struct._IO_FILE*>* %98, align 8
+  %98 = getelementptr inbounds %struct._IO_FILE** %files.0, i64 %index
+  %99 = bitcast %struct._IO_FILE** %98 to <2 x %struct._IO_FILE*>*
+  %wide.load = load <2 x %struct._IO_FILE*>* %99, align 8
   %.sum117 = or i64 %index, 2
-  %99 = getelementptr %struct._IO_FILE** %files.0, i64 %.sum117
-  %100 = bitcast %struct._IO_FILE** %99 to <2 x %struct._IO_FILE*>*
-  %wide.load114 = load <2 x %struct._IO_FILE*>* %100, align 8
-  %101 = getelementptr inbounds %struct._IO_FILE** %90, i64 %index
-  %102 = bitcast %struct._IO_FILE** %101 to <2 x %struct._IO_FILE*>*
-  store <2 x %struct._IO_FILE*> %wide.load, <2 x %struct._IO_FILE*>* %102, align 8
+  %100 = getelementptr %struct._IO_FILE** %files.0, i64 %.sum117
+  %101 = bitcast %struct._IO_FILE** %100 to <2 x %struct._IO_FILE*>*
+  %wide.load114 = load <2 x %struct._IO_FILE*>* %101, align 8
+  %102 = getelementptr inbounds %struct._IO_FILE** %91, i64 %index
+  %103 = bitcast %struct._IO_FILE** %102 to <2 x %struct._IO_FILE*>*
+  store <2 x %struct._IO_FILE*> %wide.load, <2 x %struct._IO_FILE*>* %103, align 8
   %.sum118 = or i64 %index, 2
-  %103 = getelementptr %struct._IO_FILE** %90, i64 %.sum118
-  %104 = bitcast %struct._IO_FILE** %103 to <2 x %struct._IO_FILE*>*
-  store <2 x %struct._IO_FILE*> %wide.load114, <2 x %struct._IO_FILE*>* %104, align 8
+  %104 = getelementptr %struct._IO_FILE** %91, i64 %.sum118
+  %105 = bitcast %struct._IO_FILE** %104 to <2 x %struct._IO_FILE*>*
+  store <2 x %struct._IO_FILE*> %wide.load114, <2 x %struct._IO_FILE*>* %105, align 8
   %index.next = add i64 %index, 4
-  %105 = icmp eq i64 %index.next, %n.vec
-  br i1 %105, label %middle.block, label %vector.body, !llvm.loop !49
+  %106 = icmp eq i64 %index.next, %n.vec
+  br i1 %106, label %middle.block, label %vector.body, !llvm.loop !49
 
 middle.block:                                     ; preds = %vector.body, %vector.memcheck, %.lr.ph50.preheader
   %resume.val = phi i64 [ 0, %.lr.ph50.preheader ], [ 0, %vector.memcheck ], [ %n.vec, %vector.body ]
@@ -5393,437 +5397,437 @@ middle.block:                                     ; preds = %vector.body, %vecto
 
 .lr.ph50:                                         ; preds = %middle.block, %.lr.ph50
   %indvars.iv70 = phi i64 [ %indvars.iv.next71, %.lr.ph50 ], [ %resume.val, %middle.block ]
-  %106 = getelementptr inbounds %struct._IO_FILE** %files.0, i64 %indvars.iv70
-  %107 = load %struct._IO_FILE** %106, align 8, !tbaa !1
-  %108 = getelementptr inbounds %struct._IO_FILE** %90, i64 %indvars.iv70
-  store %struct._IO_FILE* %107, %struct._IO_FILE** %108, align 8, !tbaa !1
+  %107 = getelementptr inbounds %struct._IO_FILE** %files.0, i64 %indvars.iv70
+  %108 = load %struct._IO_FILE** %107, align 8, !tbaa !1
+  %109 = getelementptr inbounds %struct._IO_FILE** %91, i64 %indvars.iv70
+  store %struct._IO_FILE* %108, %struct._IO_FILE** %109, align 8, !tbaa !1
   %indvars.iv.next71 = add nuw nsw i64 %indvars.iv70, 1
   %lftr.wideiv = trunc i64 %indvars.iv.next71 to i32
   %exitcond = icmp eq i32 %lftr.wideiv, %files_buflen.0
   br i1 %exitcond, label %.loopexit, label %.lr.ph50, !llvm.loop !52
 
 .loopexit:                                        ; preds = %middle.block, %.lr.ph50
-  br i1 %72, label %.lr.ph52, label %.loopexit.thread
+  br i1 %73, label %.lr.ph52, label %.loopexit.thread
 
 .lr.ph52:                                         ; preds = %.loopexit
-  %109 = shl nsw i64 %87, 3
-  %scevgep = getelementptr i8* %89, i64 %109
-  %110 = add i32 %files_buflen.0, -1
-  %111 = zext i32 %110 to i64
-  %112 = shl nuw nsw i64 %111, 3
-  %113 = add i64 %112, 8
-  call void @llvm.memset.p0i8.i64(i8* %scevgep, i8 0, i64 %113, i32 8, i1 false)
+  %110 = shl nsw i64 %88, 3
+  %scevgep = getelementptr i8* %90, i64 %110
+  %111 = add i32 %files_buflen.0, -1
+  %112 = zext i32 %111 to i64
+  %113 = shl nuw nsw i64 %112, 3
+  %114 = add i64 %113, 8
+  call void @llvm.memset.p0i8.i64(i8* %scevgep, i8 0, i64 %114, i32 8, i1 false)
   br label %.loopexit.thread
 
 .loopexit.thread:                                 ; preds = %.thread44, %.thread44.thread, %.lr.ph52, %.loopexit
-  %114 = phi %struct._IO_FILE** [ %90, %.lr.ph52 ], [ %90, %.loopexit ], [ %76, %.thread44.thread ], [ %90, %.thread44 ]
-  %115 = shl nsw i32 %files_buflen.0, 1
-  br label %116
+  %115 = phi %struct._IO_FILE** [ %91, %.lr.ph52 ], [ %91, %.loopexit ], [ %77, %.thread44.thread ], [ %91, %.thread44 ]
+  %116 = shl nsw i32 %files_buflen.0, 1
+  br label %117
 
-; <label>:116                                     ; preds = %.loopexit.thread, %84
-  %position.1 = phi i32 [ %files_buflen.0, %.loopexit.thread ], [ %i.048, %84 ]
-  %files_buflen.1 = phi i32 [ %115, %.loopexit.thread ], [ %files_buflen.0, %84 ]
-  %files.1 = phi %struct._IO_FILE** [ %114, %.loopexit.thread ], [ %files.0, %84 ]
-  %117 = sext i32 %position.1 to i64
-  %118 = getelementptr inbounds %struct._IO_FILE** %files.1, i64 %117
-  store %struct._IO_FILE* %70, %struct._IO_FILE** %118, align 8, !tbaa !1
+; <label>:117                                     ; preds = %.loopexit.thread, %85
+  %position.1 = phi i32 [ %files_buflen.0, %.loopexit.thread ], [ %i.048, %85 ]
+  %files_buflen.1 = phi i32 [ %116, %.loopexit.thread ], [ %files_buflen.0, %85 ]
+  %files.1 = phi %struct._IO_FILE** [ %115, %.loopexit.thread ], [ %files.0, %85 ]
+  %118 = sext i32 %position.1 to i64
+  %119 = getelementptr inbounds %struct._IO_FILE** %files.1, i64 %118
+  store %struct._IO_FILE* %71, %struct._IO_FILE** %119, align 8, !tbaa !1
   br label %.critedge
 
-; <label>:119                                     ; preds = %41
-  %120 = getelementptr inbounds %struct.VExp* %25, i64 0, i32 3, i32 0, i32 2
-  %121 = bitcast %union.SyscallArg* %120 to i32*
-  %122 = load i32* %121, align 4, !tbaa !29
-  %123 = icmp sgt i32 %122, -1
-  %124 = icmp slt i32 %122, %files_buflen.0
-  %or.cond = and i1 %123, %124
-  br i1 %or.cond, label %125, label %.critedge
+; <label>:120                                     ; preds = %42
+  %121 = getelementptr inbounds %struct.VExp* %26, i64 0, i32 3, i32 0, i32 2
+  %122 = bitcast %union.SyscallArg* %121 to i32*
+  %123 = load i32* %122, align 4, !tbaa !29
+  %124 = icmp sgt i32 %123, -1
+  %125 = icmp slt i32 %123, %files_buflen.0
+  %or.cond = and i1 %124, %125
+  br i1 %or.cond, label %126, label %.critedge
 
-; <label>:125                                     ; preds = %119
-  %126 = sext i32 %122 to i64
-  %127 = getelementptr inbounds %struct._IO_FILE** %files.0, i64 %126
-  %128 = load %struct._IO_FILE** %127, align 8, !tbaa !1
-  %129 = icmp eq %struct._IO_FILE* %128, null
-  br i1 %129, label %.critedge, label %130
+; <label>:126                                     ; preds = %120
+  %127 = sext i32 %123 to i64
+  %128 = getelementptr inbounds %struct._IO_FILE** %files.0, i64 %127
+  %129 = load %struct._IO_FILE** %128, align 8, !tbaa !1
+  %130 = icmp eq %struct._IO_FILE* %129, null
+  br i1 %130, label %.critedge, label %131
 
-; <label>:130                                     ; preds = %125
-  %131 = tail call i32 @fgetc(%struct._IO_FILE* %128) #7
+; <label>:131                                     ; preds = %126
+  %132 = tail call i32 @fgetc(%struct._IO_FILE* %129) #7
   br label %.critedge
 
-; <label>:132                                     ; preds = %41
-  %133 = getelementptr inbounds %struct.VExp* %25, i64 0, i32 3, i32 0, i32 2
-  %134 = bitcast %union.SyscallArg* %133 to i32*
-  %135 = load i32* %134, align 4, !tbaa !29
-  %136 = icmp sgt i32 %135, -1
-  %137 = icmp slt i32 %135, %files_buflen.0
-  %or.cond8 = and i1 %136, %137
-  br i1 %or.cond8, label %138, label %.critedge
+; <label>:133                                     ; preds = %42
+  %134 = getelementptr inbounds %struct.VExp* %26, i64 0, i32 3, i32 0, i32 2
+  %135 = bitcast %union.SyscallArg* %134 to i32*
+  %136 = load i32* %135, align 4, !tbaa !29
+  %137 = icmp sgt i32 %136, -1
+  %138 = icmp slt i32 %136, %files_buflen.0
+  %or.cond8 = and i1 %137, %138
+  br i1 %or.cond8, label %139, label %.critedge
 
-; <label>:138                                     ; preds = %132
-  %139 = sext i32 %135 to i64
-  %140 = getelementptr inbounds %struct._IO_FILE** %files.0, i64 %139
-  %141 = load %struct._IO_FILE** %140, align 8, !tbaa !1
-  %142 = icmp eq %struct._IO_FILE* %141, null
-  br i1 %142, label %.critedge, label %143
+; <label>:139                                     ; preds = %133
+  %140 = sext i32 %136 to i64
+  %141 = getelementptr inbounds %struct._IO_FILE** %files.0, i64 %140
+  %142 = load %struct._IO_FILE** %141, align 8, !tbaa !1
+  %143 = icmp eq %struct._IO_FILE* %142, null
+  br i1 %143, label %.critedge, label %144
 
-; <label>:143                                     ; preds = %138
-  %144 = getelementptr inbounds %struct.VExp* %25, i64 0, i32 3, i32 0, i32 3
-  %145 = load i32* %144, align 4, !tbaa !43
-  %146 = tail call i32 @fputc(i32 %145, %struct._IO_FILE* %141) #7
-  %147 = icmp eq i32 %146, -1
-  %. = zext i1 %147 to i32
+; <label>:144                                     ; preds = %139
+  %145 = getelementptr inbounds %struct.VExp* %26, i64 0, i32 3, i32 0, i32 3
+  %146 = load i32* %145, align 4, !tbaa !43
+  %147 = tail call i32 @fputc(i32 %146, %struct._IO_FILE* %142) #7
+  %148 = icmp eq i32 %147, -1
+  %. = zext i1 %148 to i32
   br label %.critedge
 
-; <label>:148                                     ; preds = %41
-  %149 = getelementptr inbounds %struct.VExp* %25, i64 0, i32 3, i32 0, i32 2
-  %150 = bitcast %union.SyscallArg* %149 to i32*
-  %151 = load i32* %150, align 4, !tbaa !29
-  %152 = icmp sgt i32 %151, -1
-  %153 = icmp slt i32 %151, %files_buflen.0
-  %or.cond9 = and i1 %152, %153
-  br i1 %or.cond9, label %154, label %.critedge
+; <label>:149                                     ; preds = %42
+  %150 = getelementptr inbounds %struct.VExp* %26, i64 0, i32 3, i32 0, i32 2
+  %151 = bitcast %union.SyscallArg* %150 to i32*
+  %152 = load i32* %151, align 4, !tbaa !29
+  %153 = icmp sgt i32 %152, -1
+  %154 = icmp slt i32 %152, %files_buflen.0
+  %or.cond9 = and i1 %153, %154
+  br i1 %or.cond9, label %155, label %.critedge
 
-; <label>:154                                     ; preds = %148
-  %155 = sext i32 %151 to i64
-  %156 = getelementptr inbounds %struct._IO_FILE** %files.0, i64 %155
-  %157 = load %struct._IO_FILE** %156, align 8, !tbaa !1
-  %158 = icmp eq %struct._IO_FILE* %157, null
-  br i1 %158, label %.critedge, label %159
+; <label>:155                                     ; preds = %149
+  %156 = sext i32 %152 to i64
+  %157 = getelementptr inbounds %struct._IO_FILE** %files.0, i64 %156
+  %158 = load %struct._IO_FILE** %157, align 8, !tbaa !1
+  %159 = icmp eq %struct._IO_FILE* %158, null
+  br i1 %159, label %.critedge, label %160
 
-; <label>:159                                     ; preds = %154
-  %160 = tail call i32 @fgetc(%struct._IO_FILE* %157) #7
-  %161 = icmp eq i32 %160, -1
-  br i1 %161, label %.critedge, label %162
+; <label>:160                                     ; preds = %155
+  %161 = tail call i32 @fgetc(%struct._IO_FILE* %158) #7
+  %162 = icmp eq i32 %161, -1
+  br i1 %162, label %.critedge, label %163
 
-; <label>:162                                     ; preds = %159
-  %163 = tail call i32 @ungetc(i32 %160, %struct._IO_FILE* %157) #7
+; <label>:163                                     ; preds = %160
+  %164 = tail call i32 @ungetc(i32 %161, %struct._IO_FILE* %158) #7
   br label %.critedge
 
-; <label>:164                                     ; preds = %41
-  %165 = icmp slt i32 %cur_argi.0, %argc
-  br i1 %165, label %166, label %.critedge
+; <label>:165                                     ; preds = %42
+  %166 = icmp slt i32 %cur_argi.0, %argc
+  br i1 %166, label %167, label %.critedge
 
-; <label>:166                                     ; preds = %164
-  %167 = load i8* %cur_arg.1, align 1, !tbaa !10
-  %168 = icmp eq i8 %167, 0
-  br i1 %168, label %172, label %169
+; <label>:167                                     ; preds = %165
+  %168 = load i8* %cur_arg.1, align 1, !tbaa !10
+  %169 = icmp eq i8 %168, 0
+  br i1 %169, label %173, label %170
 
-; <label>:169                                     ; preds = %166
-  %170 = sext i8 %167 to i32
-  %171 = getelementptr inbounds i8* %cur_arg.1, i64 1
+; <label>:170                                     ; preds = %167
+  %171 = sext i8 %168 to i32
+  %172 = getelementptr inbounds i8* %cur_arg.1, i64 1
   br label %.critedge
 
-; <label>:172                                     ; preds = %166
-  %173 = add nsw i32 %cur_argi.0, 1
-  %174 = icmp slt i32 %173, %argc
-  br i1 %174, label %175, label %.critedge
+; <label>:173                                     ; preds = %167
+  %174 = add nsw i32 %cur_argi.0, 1
+  %175 = icmp slt i32 %174, %argc
+  br i1 %175, label %176, label %.critedge
 
-; <label>:175                                     ; preds = %172
-  %176 = sext i32 %173 to i64
-  %177 = getelementptr inbounds i8** %args, i64 %176
-  %178 = load i8** %177, align 8, !tbaa !1
+; <label>:176                                     ; preds = %173
+  %177 = sext i32 %174 to i64
+  %178 = getelementptr inbounds i8** %args, i64 %177
+  %179 = load i8** %178, align 8, !tbaa !1
   br label %.critedge
 
-; <label>:179                                     ; preds = %41
-  %180 = getelementptr inbounds %struct.VExp* %25, i64 0, i32 3, i32 0, i32 2
-  %181 = bitcast %union.SyscallArg* %180 to i32*
-  %182 = load i32* %181, align 4, !tbaa !29
-  %183 = icmp sgt i32 %182, -1
-  %184 = icmp slt i32 %182, %files_buflen.0
-  %or.cond10 = and i1 %183, %184
-  br i1 %or.cond10, label %185, label %.critedge
+; <label>:180                                     ; preds = %42
+  %181 = getelementptr inbounds %struct.VExp* %26, i64 0, i32 3, i32 0, i32 2
+  %182 = bitcast %union.SyscallArg* %181 to i32*
+  %183 = load i32* %182, align 4, !tbaa !29
+  %184 = icmp sgt i32 %183, -1
+  %185 = icmp slt i32 %183, %files_buflen.0
+  %or.cond10 = and i1 %184, %185
+  br i1 %or.cond10, label %186, label %.critedge
 
-; <label>:185                                     ; preds = %179
-  %186 = sext i32 %182 to i64
-  %187 = getelementptr inbounds %struct._IO_FILE** %files.0, i64 %186
-  %188 = load %struct._IO_FILE** %187, align 8, !tbaa !1
-  %189 = icmp eq %struct._IO_FILE* %188, null
-  br i1 %189, label %.critedge, label %190
+; <label>:186                                     ; preds = %180
+  %187 = sext i32 %183 to i64
+  %188 = getelementptr inbounds %struct._IO_FILE** %files.0, i64 %187
+  %189 = load %struct._IO_FILE** %188, align 8, !tbaa !1
+  %190 = icmp eq %struct._IO_FILE* %189, null
+  br i1 %190, label %.critedge, label %191
 
-; <label>:190                                     ; preds = %185
-  %191 = tail call i32 @fclose(%struct._IO_FILE* %188) #7
-  store %struct._IO_FILE* null, %struct._IO_FILE** %187, align 8, !tbaa !1
+; <label>:191                                     ; preds = %186
+  %192 = tail call i32 @fclose(%struct._IO_FILE* %189) #7
+  store %struct._IO_FILE* null, %struct._IO_FILE** %188, align 8, !tbaa !1
   br label %.critedge
 
-; <label>:192                                     ; preds = %41
-  %193 = getelementptr inbounds %struct.VExp* %25, i64 0, i32 3, i32 0, i32 2, i32 0
-  %194 = load %struct.IntList** %193, align 8, !tbaa !1
-  %195 = icmp eq %struct.IntList* %194, null
-  br i1 %195, label %.thread.i11, label %.lr.ph7.i15
+; <label>:193                                     ; preds = %42
+  %194 = getelementptr inbounds %struct.VExp* %26, i64 0, i32 3, i32 0, i32 2, i32 0
+  %195 = load %struct.IntList** %194, align 8, !tbaa !1
+  %196 = icmp eq %struct.IntList* %195, null
+  br i1 %196, label %.thread.i11, label %.lr.ph7.i15
 
-.thread.i11:                                      ; preds = %192
-  %196 = tail call noalias i8* @malloc(i64 1) #7
+.thread.i11:                                      ; preds = %193
+  %197 = tail call noalias i8* @malloc(i64 1) #7
   br label %convertIntListToString.exit25
 
-.lr.ph7.i15:                                      ; preds = %192, %.lr.ph7.i15
-  %l.05.i12 = phi i32 [ %phitmp.i14, %.lr.ph7.i15 ], [ 1, %192 ]
-  %p.04.i13 = phi %struct.IntList* [ %198, %.lr.ph7.i15 ], [ %194, %192 ]
-  %197 = getelementptr inbounds %struct.IntList* %p.04.i13, i64 0, i32 1
-  %198 = load %struct.IntList** %197, align 8, !tbaa !5
+.lr.ph7.i15:                                      ; preds = %193, %.lr.ph7.i15
+  %l.05.i12 = phi i32 [ %phitmp.i14, %.lr.ph7.i15 ], [ 1, %193 ]
+  %p.04.i13 = phi %struct.IntList* [ %199, %.lr.ph7.i15 ], [ %195, %193 ]
+  %198 = getelementptr inbounds %struct.IntList* %p.04.i13, i64 0, i32 1
+  %199 = load %struct.IntList** %198, align 8, !tbaa !5
   %phitmp.i14 = add i32 %l.05.i12, 1
-  %199 = icmp eq %struct.IntList* %198, null
-  br i1 %199, label %.lr.ph.i21.preheader, label %.lr.ph7.i15
+  %200 = icmp eq %struct.IntList* %199, null
+  br i1 %200, label %.lr.ph.i21.preheader, label %.lr.ph7.i15
 
 .lr.ph.i21.preheader:                             ; preds = %.lr.ph7.i15
   %phitmp10.i16 = sext i32 %phitmp.i14 to i64
-  %200 = tail call noalias i8* @malloc(i64 %phitmp10.i16) #7
+  %201 = tail call noalias i8* @malloc(i64 %phitmp10.i16) #7
   br label %.lr.ph.i21
 
 .lr.ph.i21:                                       ; preds = %.lr.ph.i21.preheader, %.lr.ph.i21
   %indvars.iv.i17 = phi i64 [ %indvars.iv.next.i20, %.lr.ph.i21 ], [ 0, %.lr.ph.i21.preheader ]
-  %p1.03.i18 = phi %struct.IntList* [ %207, %.lr.ph.i21 ], [ %194, %.lr.ph.i21.preheader ]
-  %i.02.i19 = phi i32 [ %205, %.lr.ph.i21 ], [ 0, %.lr.ph.i21.preheader ]
-  %201 = getelementptr inbounds %struct.IntList* %p1.03.i18, i64 0, i32 0
-  %202 = load i32* %201, align 4, !tbaa !9
-  %203 = trunc i32 %202 to i8
-  %204 = getelementptr inbounds i8* %200, i64 %indvars.iv.i17
-  store i8 %203, i8* %204, align 1, !tbaa !10
+  %p1.03.i18 = phi %struct.IntList* [ %208, %.lr.ph.i21 ], [ %195, %.lr.ph.i21.preheader ]
+  %i.02.i19 = phi i32 [ %206, %.lr.ph.i21 ], [ 0, %.lr.ph.i21.preheader ]
+  %202 = getelementptr inbounds %struct.IntList* %p1.03.i18, i64 0, i32 0
+  %203 = load i32* %202, align 4, !tbaa !9
+  %204 = trunc i32 %203 to i8
+  %205 = getelementptr inbounds i8* %201, i64 %indvars.iv.i17
+  store i8 %204, i8* %205, align 1, !tbaa !10
   %indvars.iv.next.i20 = add nuw nsw i64 %indvars.iv.i17, 1
-  %205 = add nsw i32 %i.02.i19, 1
-  %206 = getelementptr inbounds %struct.IntList* %p1.03.i18, i64 0, i32 1
-  %207 = load %struct.IntList** %206, align 8, !tbaa !5
-  %208 = icmp eq %struct.IntList* %207, null
-  br i1 %208, label %._crit_edge.i23, label %.lr.ph.i21
+  %206 = add nsw i32 %i.02.i19, 1
+  %207 = getelementptr inbounds %struct.IntList* %p1.03.i18, i64 0, i32 1
+  %208 = load %struct.IntList** %207, align 8, !tbaa !5
+  %209 = icmp eq %struct.IntList* %208, null
+  br i1 %209, label %._crit_edge.i23, label %.lr.ph.i21
 
 ._crit_edge.i23:                                  ; preds = %.lr.ph.i21
-  %phitmp11.i22 = sext i32 %205 to i64
+  %phitmp11.i22 = sext i32 %206 to i64
   br label %convertIntListToString.exit25
 
 convertIntListToString.exit25:                    ; preds = %.thread.i11, %._crit_edge.i23
-  %209 = phi i8* [ %200, %._crit_edge.i23 ], [ %196, %.thread.i11 ]
+  %210 = phi i8* [ %201, %._crit_edge.i23 ], [ %197, %.thread.i11 ]
   %i.0.lcssa.i24 = phi i64 [ %phitmp11.i22, %._crit_edge.i23 ], [ 0, %.thread.i11 ]
-  %210 = getelementptr inbounds i8* %209, i64 %i.0.lcssa.i24
-  store i8 0, i8* %210, align 1, !tbaa !10
-  %211 = tail call i32 @system(i8* %209) #7
-  tail call void @free(i8* %209) #7
+  %211 = getelementptr inbounds i8* %210, i64 %i.0.lcssa.i24
+  store i8 0, i8* %211, align 1, !tbaa !10
+  %212 = tail call i32 @system(i8* %210) #7
+  tail call void @free(i8* %210) #7
   br label %.critedge
 
-.critedge:                                        ; preds = %46, %41, %185, %179, %164, %154, %148, %143, %138, %132, %125, %119, %convertIntListToString.exit, %159, %116, %175, %172, %169, %convertIntListToString.exit25, %190, %162, %130
-  %resultcode.1 = phi i32 [ %position.1, %116 ], [ %131, %130 ], [ %160, %162 ], [ -1, %159 ], [ %170, %169 ], [ 0, %175 ], [ 0, %172 ], [ %191, %190 ], [ %211, %convertIntListToString.exit25 ], [ -1, %convertIntListToString.exit ], [ -2, %119 ], [ -2, %125 ], [ -2, %132 ], [ -2, %138 ], [ %., %143 ], [ -2, %148 ], [ -2, %154 ], [ -1, %164 ], [ -2, %179 ], [ -2, %185 ], [ 0, %41 ], [ -2, %46 ]
-  %files_buflen.2 = phi i32 [ %files_buflen.1, %116 ], [ %files_buflen.0, %130 ], [ %files_buflen.0, %162 ], [ %files_buflen.0, %159 ], [ %files_buflen.0, %169 ], [ %files_buflen.0, %175 ], [ %files_buflen.0, %172 ], [ %files_buflen.0, %190 ], [ %files_buflen.0, %convertIntListToString.exit25 ], [ %files_buflen.0, %convertIntListToString.exit ], [ %files_buflen.0, %119 ], [ %files_buflen.0, %125 ], [ %files_buflen.0, %132 ], [ %files_buflen.0, %138 ], [ %files_buflen.0, %143 ], [ %files_buflen.0, %148 ], [ %files_buflen.0, %154 ], [ %files_buflen.0, %164 ], [ %files_buflen.0, %179 ], [ %files_buflen.0, %185 ], [ %files_buflen.0, %41 ], [ %files_buflen.0, %46 ]
-  %files.2 = phi %struct._IO_FILE** [ %files.1, %116 ], [ %files.0, %130 ], [ %files.0, %162 ], [ %files.0, %159 ], [ %files.0, %169 ], [ %files.0, %175 ], [ %files.0, %172 ], [ %files.0, %190 ], [ %files.0, %convertIntListToString.exit25 ], [ %files.0, %convertIntListToString.exit ], [ %files.0, %119 ], [ %files.0, %125 ], [ %files.0, %132 ], [ %files.0, %138 ], [ %files.0, %143 ], [ %files.0, %148 ], [ %files.0, %154 ], [ %files.0, %164 ], [ %files.0, %179 ], [ %files.0, %185 ], [ %files.0, %41 ], [ %files.0, %46 ]
-  %cur_arg.2 = phi i8* [ %cur_arg.1, %116 ], [ %cur_arg.1, %130 ], [ %cur_arg.1, %162 ], [ %cur_arg.1, %159 ], [ %171, %169 ], [ %178, %175 ], [ %cur_arg.1, %172 ], [ %cur_arg.1, %190 ], [ %cur_arg.1, %convertIntListToString.exit25 ], [ %cur_arg.1, %convertIntListToString.exit ], [ %cur_arg.1, %119 ], [ %cur_arg.1, %125 ], [ %cur_arg.1, %132 ], [ %cur_arg.1, %138 ], [ %cur_arg.1, %143 ], [ %cur_arg.1, %148 ], [ %cur_arg.1, %154 ], [ %cur_arg.1, %164 ], [ %cur_arg.1, %179 ], [ %cur_arg.1, %185 ], [ %cur_arg.1, %41 ], [ %cur_arg.1, %46 ]
-  %cur_argi.1 = phi i32 [ %cur_argi.0, %116 ], [ %cur_argi.0, %130 ], [ %cur_argi.0, %162 ], [ %cur_argi.0, %159 ], [ %cur_argi.0, %169 ], [ %173, %175 ], [ %173, %172 ], [ %cur_argi.0, %190 ], [ %cur_argi.0, %convertIntListToString.exit25 ], [ %cur_argi.0, %convertIntListToString.exit ], [ %cur_argi.0, %119 ], [ %cur_argi.0, %125 ], [ %cur_argi.0, %132 ], [ %cur_argi.0, %138 ], [ %cur_argi.0, %143 ], [ %cur_argi.0, %148 ], [ %cur_argi.0, %154 ], [ %cur_argi.0, %164 ], [ %cur_argi.0, %179 ], [ %cur_argi.0, %185 ], [ %cur_argi.0, %41 ], [ %cur_argi.0, %46 ]
-  %212 = load %struct.VExp** %24, align 8, !tbaa !18
-  %213 = getelementptr inbounds %struct.VExp* %212, i64 0, i32 3, i32 0, i32 4
-  %214 = load %struct.Value** %213, align 8, !tbaa !30
-  tail call void @resolveAllValue(%struct.Value* %214)
-  %215 = getelementptr inbounds %struct.Value* %214, i64 0, i32 0
-  %216 = load i32* %215, align 4, !tbaa !33
-  %217 = icmp eq i32 %216, 1
-  br i1 %217, label %218, label %225
+.critedge:                                        ; preds = %47, %42, %186, %180, %165, %155, %149, %144, %139, %133, %126, %120, %convertIntListToString.exit, %160, %117, %176, %173, %170, %convertIntListToString.exit25, %191, %163, %131
+  %resultcode.1 = phi i32 [ %position.1, %117 ], [ %132, %131 ], [ %161, %163 ], [ -1, %160 ], [ %171, %170 ], [ 0, %176 ], [ 0, %173 ], [ %192, %191 ], [ %212, %convertIntListToString.exit25 ], [ -1, %convertIntListToString.exit ], [ -2, %120 ], [ -2, %126 ], [ -2, %133 ], [ -2, %139 ], [ %., %144 ], [ -2, %149 ], [ -2, %155 ], [ -1, %165 ], [ -2, %180 ], [ -2, %186 ], [ 0, %42 ], [ -2, %47 ]
+  %files_buflen.2 = phi i32 [ %files_buflen.1, %117 ], [ %files_buflen.0, %131 ], [ %files_buflen.0, %163 ], [ %files_buflen.0, %160 ], [ %files_buflen.0, %170 ], [ %files_buflen.0, %176 ], [ %files_buflen.0, %173 ], [ %files_buflen.0, %191 ], [ %files_buflen.0, %convertIntListToString.exit25 ], [ %files_buflen.0, %convertIntListToString.exit ], [ %files_buflen.0, %120 ], [ %files_buflen.0, %126 ], [ %files_buflen.0, %133 ], [ %files_buflen.0, %139 ], [ %files_buflen.0, %144 ], [ %files_buflen.0, %149 ], [ %files_buflen.0, %155 ], [ %files_buflen.0, %165 ], [ %files_buflen.0, %180 ], [ %files_buflen.0, %186 ], [ %files_buflen.0, %42 ], [ %files_buflen.0, %47 ]
+  %files.2 = phi %struct._IO_FILE** [ %files.1, %117 ], [ %files.0, %131 ], [ %files.0, %163 ], [ %files.0, %160 ], [ %files.0, %170 ], [ %files.0, %176 ], [ %files.0, %173 ], [ %files.0, %191 ], [ %files.0, %convertIntListToString.exit25 ], [ %files.0, %convertIntListToString.exit ], [ %files.0, %120 ], [ %files.0, %126 ], [ %files.0, %133 ], [ %files.0, %139 ], [ %files.0, %144 ], [ %files.0, %149 ], [ %files.0, %155 ], [ %files.0, %165 ], [ %files.0, %180 ], [ %files.0, %186 ], [ %files.0, %42 ], [ %files.0, %47 ]
+  %cur_arg.2 = phi i8* [ %cur_arg.1, %117 ], [ %cur_arg.1, %131 ], [ %cur_arg.1, %163 ], [ %cur_arg.1, %160 ], [ %172, %170 ], [ %179, %176 ], [ %cur_arg.1, %173 ], [ %cur_arg.1, %191 ], [ %cur_arg.1, %convertIntListToString.exit25 ], [ %cur_arg.1, %convertIntListToString.exit ], [ %cur_arg.1, %120 ], [ %cur_arg.1, %126 ], [ %cur_arg.1, %133 ], [ %cur_arg.1, %139 ], [ %cur_arg.1, %144 ], [ %cur_arg.1, %149 ], [ %cur_arg.1, %155 ], [ %cur_arg.1, %165 ], [ %cur_arg.1, %180 ], [ %cur_arg.1, %186 ], [ %cur_arg.1, %42 ], [ %cur_arg.1, %47 ]
+  %cur_argi.1 = phi i32 [ %cur_argi.0, %117 ], [ %cur_argi.0, %131 ], [ %cur_argi.0, %163 ], [ %cur_argi.0, %160 ], [ %cur_argi.0, %170 ], [ %174, %176 ], [ %174, %173 ], [ %cur_argi.0, %191 ], [ %cur_argi.0, %convertIntListToString.exit25 ], [ %cur_argi.0, %convertIntListToString.exit ], [ %cur_argi.0, %120 ], [ %cur_argi.0, %126 ], [ %cur_argi.0, %133 ], [ %cur_argi.0, %139 ], [ %cur_argi.0, %144 ], [ %cur_argi.0, %149 ], [ %cur_argi.0, %155 ], [ %cur_argi.0, %165 ], [ %cur_argi.0, %180 ], [ %cur_argi.0, %186 ], [ %cur_argi.0, %42 ], [ %cur_argi.0, %47 ]
+  %213 = load %struct.VExp** %25, align 8, !tbaa !18
+  %214 = getelementptr inbounds %struct.VExp* %213, i64 0, i32 3, i32 0, i32 4
+  %215 = load %struct.Value** %214, align 8, !tbaa !30
+  tail call void @resolveAllValue(%struct.Value* %215)
+  %216 = getelementptr inbounds %struct.Value* %215, i64 0, i32 0
+  %217 = load i32* %216, align 4, !tbaa !33
+  %218 = icmp eq i32 %217, 1
+  br i1 %218, label %219, label %226
 
-; <label>:218                                     ; preds = %.critedge
-  %219 = icmp eq %struct.Value* %214, null
-  br i1 %219, label %retainValue.exit, label %220
+; <label>:219                                     ; preds = %.critedge
+  %220 = icmp eq %struct.Value* %215, null
+  br i1 %220, label %retainValue.exit, label %221
 
-; <label>:220                                     ; preds = %218
-  %221 = getelementptr inbounds %struct.Value* %214, i64 0, i32 2
-  %222 = load i32* %221, align 4, !tbaa !31
-  %223 = add nsw i32 %222, 1
-  store i32 %223, i32* %221, align 4, !tbaa !31
+; <label>:221                                     ; preds = %219
+  %222 = getelementptr inbounds %struct.Value* %215, i64 0, i32 2
+  %223 = load i32* %222, align 4, !tbaa !31
+  %224 = add nsw i32 %223, 1
+  store i32 %224, i32* %222, align 4, !tbaa !31
   br label %retainValue.exit
 
-retainValue.exit:                                 ; preds = %218, %220
-  %224 = tail call %struct.Value* @releaseValue(%struct.Value* %.0)
+retainValue.exit:                                 ; preds = %219, %221
+  %225 = tail call %struct.Value* @releaseValue(%struct.Value* %.0)
   br label %.backedge
 
-; <label>:225                                     ; preds = %.critedge
-  %226 = zext i32 %resultcode.1 to i64
-  %227 = load %struct.VExp** @allocateVExp.pool, align 8, !tbaa !1
-  %228 = icmp eq %struct.VExp* %227, null
-  br i1 %228, label %229, label %newVExpNum.exit
+; <label>:226                                     ; preds = %.critedge
+  %227 = zext i32 %resultcode.1 to i64
+  %228 = load %struct.VExp** @allocateVExp.pool, align 8, !tbaa !1
+  %229 = icmp eq %struct.VExp* %228, null
+  br i1 %229, label %230, label %newVExpNum.exit
 
-; <label>:229                                     ; preds = %225
-  %230 = tail call noalias i8* @malloc(i64 56000) #7
-  %231 = bitcast i8* %230 to %struct.VExp*
-  br label %232
+; <label>:230                                     ; preds = %226
+  %231 = tail call noalias i8* @malloc(i64 56000) #7
+  %232 = bitcast i8* %231 to %struct.VExp*
+  br label %233
 
-; <label>:232                                     ; preds = %232, %229
-  %indvars.iv.i.i = phi i64 [ 0, %229 ], [ %indvars.iv.next.i.i, %232 ]
-  %233 = phi %struct.VExp* [ null, %229 ], [ %234, %232 ]
-  %234 = getelementptr inbounds %struct.VExp* %231, i64 %indvars.iv.i.i
-  %235 = getelementptr inbounds %struct.VExp* %231, i64 %indvars.iv.i.i, i32 3
-  %236 = bitcast %union.anon.1* %235 to %struct.VExp**
-  store %struct.VExp* %233, %struct.VExp** %236, align 8, !tbaa !1
+; <label>:233                                     ; preds = %233, %230
+  %indvars.iv.i.i = phi i64 [ 0, %230 ], [ %indvars.iv.next.i.i, %233 ]
+  %234 = phi %struct.VExp* [ null, %230 ], [ %235, %233 ]
+  %235 = getelementptr inbounds %struct.VExp* %232, i64 %indvars.iv.i.i
+  %236 = getelementptr inbounds %struct.VExp* %232, i64 %indvars.iv.i.i, i32 3
+  %237 = bitcast %union.anon.1* %236 to %struct.VExp**
+  store %struct.VExp* %234, %struct.VExp** %237, align 8, !tbaa !1
   %indvars.iv.next.i.i = add nuw nsw i64 %indvars.iv.i.i, 1
   %exitcond.i.i = icmp eq i64 %indvars.iv.next.i.i, 1000
-  br i1 %exitcond.i.i, label %.loopexit.i.i, label %232
+  br i1 %exitcond.i.i, label %.loopexit.i.i, label %233
 
-.loopexit.i.i:                                    ; preds = %232
-  %scevgep.i.i = getelementptr i8* %230, i64 55944
+.loopexit.i.i:                                    ; preds = %233
+  %scevgep.i.i = getelementptr i8* %231, i64 55944
   %scevgep3.i.i = bitcast i8* %scevgep.i.i to %struct.VExp*
   store %struct.VExp* %scevgep3.i.i, %struct.VExp** @allocateVExp.pool, align 8, !tbaa !1
   br label %newVExpNum.exit
 
-newVExpNum.exit:                                  ; preds = %225, %.loopexit.i.i
-  %237 = phi %struct.VExp* [ %scevgep3.i.i, %.loopexit.i.i ], [ %227, %225 ]
-  %238 = getelementptr inbounds %struct.VExp* %237, i64 0, i32 4
-  store i32 1, i32* %238, align 4, !tbaa !23
-  %239 = getelementptr inbounds %struct.VExp* %237, i64 0, i32 3
-  %240 = bitcast %union.anon.1* %239 to %struct.VExp**
-  %241 = load %struct.VExp** %240, align 8, !tbaa !1
-  store %struct.VExp* %241, %struct.VExp** @allocateVExp.pool, align 8, !tbaa !1
-  %242 = getelementptr inbounds %struct.VExp* %237, i64 0, i32 0
-  store i32 0, i32* %242, align 4, !tbaa !25
-  %243 = getelementptr inbounds %struct.VExp* %237, i64 0, i32 3, i32 0, i32 0
-  store i32 0, i32* %243, align 8
-  %244 = getelementptr inbounds %struct.VExp* %237, i64 0, i32 3, i32 0, i32 2, i32 0
-  %num_val.coerce1.c.i = inttoptr i64 %226 to %struct.IntList*
-  store %struct.IntList* %num_val.coerce1.c.i, %struct.IntList** %244, align 8
-  %245 = load %struct.Value** @allocateValue.pool, align 8, !tbaa !1
-  %246 = icmp eq %struct.Value* %245, null
-  br i1 %246, label %247, label %newResolvedValue.exit
+newVExpNum.exit:                                  ; preds = %226, %.loopexit.i.i
+  %238 = phi %struct.VExp* [ %scevgep3.i.i, %.loopexit.i.i ], [ %228, %226 ]
+  %239 = getelementptr inbounds %struct.VExp* %238, i64 0, i32 4
+  store i32 1, i32* %239, align 4, !tbaa !23
+  %240 = getelementptr inbounds %struct.VExp* %238, i64 0, i32 3
+  %241 = bitcast %union.anon.1* %240 to %struct.VExp**
+  %242 = load %struct.VExp** %241, align 8, !tbaa !1
+  store %struct.VExp* %242, %struct.VExp** @allocateVExp.pool, align 8, !tbaa !1
+  %243 = getelementptr inbounds %struct.VExp* %238, i64 0, i32 0
+  store i32 0, i32* %243, align 4, !tbaa !25
+  %244 = getelementptr inbounds %struct.VExp* %238, i64 0, i32 3, i32 0, i32 0
+  store i32 0, i32* %244, align 8
+  %245 = getelementptr inbounds %struct.VExp* %238, i64 0, i32 3, i32 0, i32 2, i32 0
+  %num_val.coerce1.c.i = inttoptr i64 %227 to %struct.IntList*
+  store %struct.IntList* %num_val.coerce1.c.i, %struct.IntList** %245, align 8
+  %246 = load %struct.Value** @allocateValue.pool, align 8, !tbaa !1
+  %247 = icmp eq %struct.Value* %246, null
+  br i1 %247, label %248, label %newResolvedValue.exit
 
-; <label>:247                                     ; preds = %newVExpNum.exit
-  %248 = tail call noalias i8* @malloc(i64 40000) #7
-  %249 = bitcast i8* %248 to %struct.Value*
-  br label %250
+; <label>:248                                     ; preds = %newVExpNum.exit
+  %249 = tail call noalias i8* @malloc(i64 40000) #7
+  %250 = bitcast i8* %249 to %struct.Value*
+  br label %251
 
-; <label>:250                                     ; preds = %250, %247
-  %indvars.iv.i.i26 = phi i64 [ 0, %247 ], [ %indvars.iv.next.i.i27, %250 ]
-  %251 = phi %struct.Value* [ null, %247 ], [ %252, %250 ]
-  %252 = getelementptr inbounds %struct.Value* %249, i64 %indvars.iv.i.i26
-  %253 = getelementptr inbounds %struct.Value* %249, i64 %indvars.iv.i.i26, i32 1, i32 0, i32 0
-  %.c.i.i = bitcast %struct.Value* %251 to %struct.VExp*
-  store %struct.VExp* %.c.i.i, %struct.VExp** %253, align 8, !tbaa !1
+; <label>:251                                     ; preds = %251, %248
+  %indvars.iv.i.i26 = phi i64 [ 0, %248 ], [ %indvars.iv.next.i.i27, %251 ]
+  %252 = phi %struct.Value* [ null, %248 ], [ %253, %251 ]
+  %253 = getelementptr inbounds %struct.Value* %250, i64 %indvars.iv.i.i26
+  %254 = getelementptr inbounds %struct.Value* %250, i64 %indvars.iv.i.i26, i32 1, i32 0, i32 0
+  %.c.i.i = bitcast %struct.Value* %252 to %struct.VExp*
+  store %struct.VExp* %.c.i.i, %struct.VExp** %254, align 8, !tbaa !1
   %indvars.iv.next.i.i27 = add nuw nsw i64 %indvars.iv.i.i26, 1
   %exitcond.i.i28 = icmp eq i64 %indvars.iv.next.i.i27, 1000
-  br i1 %exitcond.i.i28, label %.loopexit.i.i30, label %250
+  br i1 %exitcond.i.i28, label %.loopexit.i.i30, label %251
 
-.loopexit.i.i30:                                  ; preds = %250
-  %scevgep.i.i29 = getelementptr i8* %248, i64 39960
+.loopexit.i.i30:                                  ; preds = %251
+  %scevgep.i.i29 = getelementptr i8* %249, i64 39960
   %scevgep4.i.i = bitcast i8* %scevgep.i.i29 to %struct.Value*
   store %struct.Value* %scevgep4.i.i, %struct.Value** @allocateValue.pool, align 8, !tbaa !1
   br label %newResolvedValue.exit
 
 newResolvedValue.exit:                            ; preds = %newVExpNum.exit, %.loopexit.i.i30
-  %254 = phi %struct.Value* [ %scevgep4.i.i, %.loopexit.i.i30 ], [ %245, %newVExpNum.exit ]
-  %255 = getelementptr inbounds %struct.Value* %254, i64 0, i32 2
-  store i32 1, i32* %255, align 4, !tbaa !31
-  %256 = getelementptr inbounds %struct.Value* %254, i64 0, i32 1
-  %257 = bitcast %union.anon.0* %256 to %struct.Value**
-  %258 = load %struct.Value** %257, align 8, !tbaa !1
-  store %struct.Value* %258, %struct.Value** @allocateValue.pool, align 8, !tbaa !1
-  %259 = getelementptr inbounds %struct.Value* %254, i64 0, i32 0
-  store i32 0, i32* %259, align 4, !tbaa !33
-  %260 = getelementptr inbounds %struct.Value* %254, i64 0, i32 1, i32 0, i32 0
-  store %struct.VExp* %237, %struct.VExp** %260, align 8, !tbaa !18
-  %261 = getelementptr inbounds %struct.Value* %254, i64 0, i32 1, i32 0, i32 1
-  store %struct.VContext* null, %struct.VContext** %261, align 8, !tbaa !20
-  %262 = getelementptr inbounds %struct.Value* %214, i64 0, i32 1, i32 0, i32 0
-  %263 = load %struct.VExp** %262, align 8, !tbaa !18
-  %264 = icmp eq %struct.VExp* %263, null
-  br i1 %264, label %retainVExp.exit, label %265
+  %255 = phi %struct.Value* [ %scevgep4.i.i, %.loopexit.i.i30 ], [ %246, %newVExpNum.exit ]
+  %256 = getelementptr inbounds %struct.Value* %255, i64 0, i32 2
+  store i32 1, i32* %256, align 4, !tbaa !31
+  %257 = getelementptr inbounds %struct.Value* %255, i64 0, i32 1
+  %258 = bitcast %union.anon.0* %257 to %struct.Value**
+  %259 = load %struct.Value** %258, align 8, !tbaa !1
+  store %struct.Value* %259, %struct.Value** @allocateValue.pool, align 8, !tbaa !1
+  %260 = getelementptr inbounds %struct.Value* %255, i64 0, i32 0
+  store i32 0, i32* %260, align 4, !tbaa !33
+  %261 = getelementptr inbounds %struct.Value* %255, i64 0, i32 1, i32 0, i32 0
+  store %struct.VExp* %238, %struct.VExp** %261, align 8, !tbaa !18
+  %262 = getelementptr inbounds %struct.Value* %255, i64 0, i32 1, i32 0, i32 1
+  store %struct.VContext* null, %struct.VContext** %262, align 8, !tbaa !20
+  %263 = getelementptr inbounds %struct.Value* %215, i64 0, i32 1, i32 0, i32 0
+  %264 = load %struct.VExp** %263, align 8, !tbaa !18
+  %265 = icmp eq %struct.VExp* %264, null
+  br i1 %265, label %retainVExp.exit, label %266
 
-; <label>:265                                     ; preds = %newResolvedValue.exit
-  %266 = getelementptr inbounds %struct.VExp* %263, i64 0, i32 4
-  %267 = load i32* %266, align 4, !tbaa !23
-  %268 = add nsw i32 %267, 1
-  store i32 %268, i32* %266, align 4, !tbaa !23
+; <label>:266                                     ; preds = %newResolvedValue.exit
+  %267 = getelementptr inbounds %struct.VExp* %264, i64 0, i32 4
+  %268 = load i32* %267, align 4, !tbaa !23
+  %269 = add nsw i32 %268, 1
+  store i32 %269, i32* %267, align 4, !tbaa !23
   br label %retainVExp.exit
 
-retainVExp.exit:                                  ; preds = %newResolvedValue.exit, %265
-  %269 = getelementptr inbounds %struct.Value* %214, i64 0, i32 1, i32 0, i32 1
-  %270 = load %struct.VContext** %269, align 8, !tbaa !20
-  %271 = icmp eq %struct.VContext* %270, null
-  br i1 %271, label %retainVContext.exit, label %272
+retainVExp.exit:                                  ; preds = %newResolvedValue.exit, %266
+  %270 = getelementptr inbounds %struct.Value* %215, i64 0, i32 1, i32 0, i32 1
+  %271 = load %struct.VContext** %270, align 8, !tbaa !20
+  %272 = icmp eq %struct.VContext* %271, null
+  br i1 %272, label %retainVContext.exit, label %273
 
-; <label>:272                                     ; preds = %retainVExp.exit
-  %273 = getelementptr inbounds %struct.VContext* %270, i64 0, i32 2
-  %274 = load i32* %273, align 4, !tbaa !13
-  %275 = add nsw i32 %274, 1
-  store i32 %275, i32* %273, align 4, !tbaa !13
+; <label>:273                                     ; preds = %retainVExp.exit
+  %274 = getelementptr inbounds %struct.VContext* %271, i64 0, i32 2
+  %275 = load i32* %274, align 4, !tbaa !13
+  %276 = add nsw i32 %275, 1
+  store i32 %276, i32* %274, align 4, !tbaa !13
   br label %retainVContext.exit
 
-retainVContext.exit:                              ; preds = %retainVExp.exit, %272
-  %276 = load %struct.Value** @allocateValue.pool, align 8, !tbaa !1
-  %277 = icmp eq %struct.Value* %276, null
-  br i1 %277, label %278, label %newRunningValue.exit
+retainVContext.exit:                              ; preds = %retainVExp.exit, %273
+  %277 = load %struct.Value** @allocateValue.pool, align 8, !tbaa !1
+  %278 = icmp eq %struct.Value* %277, null
+  br i1 %278, label %279, label %newRunningValue.exit
 
-; <label>:278                                     ; preds = %retainVContext.exit
-  %279 = tail call noalias i8* @malloc(i64 40000) #7
-  %280 = bitcast i8* %279 to %struct.Value*
-  br label %281
+; <label>:279                                     ; preds = %retainVContext.exit
+  %280 = tail call noalias i8* @malloc(i64 40000) #7
+  %281 = bitcast i8* %280 to %struct.Value*
+  br label %282
 
-; <label>:281                                     ; preds = %281, %278
-  %indvars.iv.i.i31 = phi i64 [ 0, %278 ], [ %indvars.iv.next.i.i33, %281 ]
-  %282 = phi %struct.Value* [ null, %278 ], [ %283, %281 ]
-  %283 = getelementptr inbounds %struct.Value* %280, i64 %indvars.iv.i.i31
-  %284 = getelementptr inbounds %struct.Value* %280, i64 %indvars.iv.i.i31, i32 1, i32 0, i32 0
-  %.c.i.i32 = bitcast %struct.Value* %282 to %struct.VExp*
-  store %struct.VExp* %.c.i.i32, %struct.VExp** %284, align 8, !tbaa !1
+; <label>:282                                     ; preds = %282, %279
+  %indvars.iv.i.i31 = phi i64 [ 0, %279 ], [ %indvars.iv.next.i.i33, %282 ]
+  %283 = phi %struct.Value* [ null, %279 ], [ %284, %282 ]
+  %284 = getelementptr inbounds %struct.Value* %281, i64 %indvars.iv.i.i31
+  %285 = getelementptr inbounds %struct.Value* %281, i64 %indvars.iv.i.i31, i32 1, i32 0, i32 0
+  %.c.i.i32 = bitcast %struct.Value* %283 to %struct.VExp*
+  store %struct.VExp* %.c.i.i32, %struct.VExp** %285, align 8, !tbaa !1
   %indvars.iv.next.i.i33 = add nuw nsw i64 %indvars.iv.i.i31, 1
   %exitcond.i.i34 = icmp eq i64 %indvars.iv.next.i.i33, 1000
-  br i1 %exitcond.i.i34, label %.loopexit.i.i37, label %281
+  br i1 %exitcond.i.i34, label %.loopexit.i.i37, label %282
 
-.loopexit.i.i37:                                  ; preds = %281
-  %scevgep.i.i35 = getelementptr i8* %279, i64 39960
+.loopexit.i.i37:                                  ; preds = %282
+  %scevgep.i.i35 = getelementptr i8* %280, i64 39960
   %scevgep4.i.i36 = bitcast i8* %scevgep.i.i35 to %struct.Value*
   store %struct.Value* %scevgep4.i.i36, %struct.Value** @allocateValue.pool, align 8, !tbaa !1
   br label %newRunningValue.exit
 
 newRunningValue.exit:                             ; preds = %retainVContext.exit, %.loopexit.i.i37
-  %285 = phi %struct.Value* [ %scevgep4.i.i36, %.loopexit.i.i37 ], [ %276, %retainVContext.exit ]
-  %286 = getelementptr inbounds %struct.Value* %285, i64 0, i32 2
-  store i32 1, i32* %286, align 4, !tbaa !31
-  %287 = getelementptr inbounds %struct.Value* %285, i64 0, i32 1
-  %288 = bitcast %union.anon.0* %287 to %struct.Value**
-  %289 = load %struct.Value** %288, align 8, !tbaa !1
-  store %struct.Value* %289, %struct.Value** @allocateValue.pool, align 8, !tbaa !1
-  %290 = getelementptr inbounds %struct.Value* %285, i64 0, i32 0
-  store i32 2, i32* %290, align 4, !tbaa !33
-  %291 = getelementptr inbounds %struct.Value* %285, i64 0, i32 1, i32 0, i32 0
-  store %struct.VExp* %263, %struct.VExp** %291, align 8, !tbaa !34
-  %292 = getelementptr inbounds %struct.Value* %285, i64 0, i32 1, i32 0, i32 1
-  store %struct.VContext* %270, %struct.VContext** %292, align 8, !tbaa !36
-  %293 = getelementptr inbounds %struct.Value* %285, i64 0, i32 1, i32 0, i32 2
-  store %struct.Continuation* null, %struct.Continuation** %293, align 8, !tbaa !37
-  %294 = load %struct.Continuation** @allocateContinuation.pool, align 8, !tbaa !1
-  %295 = icmp eq %struct.Continuation* %294, null
-  br i1 %295, label %296, label %pushApplyContinuation.exit
+  %286 = phi %struct.Value* [ %scevgep4.i.i36, %.loopexit.i.i37 ], [ %277, %retainVContext.exit ]
+  %287 = getelementptr inbounds %struct.Value* %286, i64 0, i32 2
+  store i32 1, i32* %287, align 4, !tbaa !31
+  %288 = getelementptr inbounds %struct.Value* %286, i64 0, i32 1
+  %289 = bitcast %union.anon.0* %288 to %struct.Value**
+  %290 = load %struct.Value** %289, align 8, !tbaa !1
+  store %struct.Value* %290, %struct.Value** @allocateValue.pool, align 8, !tbaa !1
+  %291 = getelementptr inbounds %struct.Value* %286, i64 0, i32 0
+  store i32 2, i32* %291, align 4, !tbaa !33
+  %292 = getelementptr inbounds %struct.Value* %286, i64 0, i32 1, i32 0, i32 0
+  store %struct.VExp* %264, %struct.VExp** %292, align 8, !tbaa !34
+  %293 = getelementptr inbounds %struct.Value* %286, i64 0, i32 1, i32 0, i32 1
+  store %struct.VContext* %271, %struct.VContext** %293, align 8, !tbaa !36
+  %294 = getelementptr inbounds %struct.Value* %286, i64 0, i32 1, i32 0, i32 2
+  store %struct.Continuation* null, %struct.Continuation** %294, align 8, !tbaa !37
+  %295 = load %struct.Continuation** @allocateContinuation.pool, align 8, !tbaa !1
+  %296 = icmp eq %struct.Continuation* %295, null
+  br i1 %296, label %297, label %pushApplyContinuation.exit
 
-; <label>:296                                     ; preds = %newRunningValue.exit
-  %297 = tail call noalias i8* @malloc(i64 32000) #7
-  %298 = bitcast i8* %297 to %struct.Continuation*
-  br label %299
+; <label>:297                                     ; preds = %newRunningValue.exit
+  %298 = tail call noalias i8* @malloc(i64 32000) #7
+  %299 = bitcast i8* %298 to %struct.Continuation*
+  br label %300
 
-; <label>:299                                     ; preds = %299, %296
-  %indvars.iv.i.i38 = phi i64 [ 0, %296 ], [ %indvars.iv.next.i.i39, %299 ]
-  %300 = phi %struct.Continuation* [ null, %296 ], [ %301, %299 ]
-  %301 = getelementptr inbounds %struct.Continuation* %298, i64 %indvars.iv.i.i38
-  %302 = getelementptr inbounds %struct.Continuation* %298, i64 %indvars.iv.i.i38, i32 2
-  store %struct.Continuation* %300, %struct.Continuation** %302, align 8, !tbaa !15
+; <label>:300                                     ; preds = %300, %297
+  %indvars.iv.i.i38 = phi i64 [ 0, %297 ], [ %indvars.iv.next.i.i39, %300 ]
+  %301 = phi %struct.Continuation* [ null, %297 ], [ %302, %300 ]
+  %302 = getelementptr inbounds %struct.Continuation* %299, i64 %indvars.iv.i.i38
+  %303 = getelementptr inbounds %struct.Continuation* %299, i64 %indvars.iv.i.i38, i32 2
+  store %struct.Continuation* %301, %struct.Continuation** %303, align 8, !tbaa !15
   %indvars.iv.next.i.i39 = add nuw nsw i64 %indvars.iv.i.i38, 1
   %exitcond.i.i40 = icmp eq i64 %indvars.iv.next.i.i39, 1000
-  br i1 %exitcond.i.i40, label %.loopexit.i.i43, label %299
+  br i1 %exitcond.i.i40, label %.loopexit.i.i43, label %300
 
-.loopexit.i.i43:                                  ; preds = %299
-  %scevgep.i.i41 = getelementptr i8* %297, i64 31968
+.loopexit.i.i43:                                  ; preds = %300
+  %scevgep.i.i41 = getelementptr i8* %298, i64 31968
   %scevgep3.i.i42 = bitcast i8* %scevgep.i.i41 to %struct.Continuation*
   store %struct.Continuation* %scevgep3.i.i42, %struct.Continuation** @allocateContinuation.pool, align 8, !tbaa !1
   br label %pushApplyContinuation.exit
 
 pushApplyContinuation.exit:                       ; preds = %newRunningValue.exit, %.loopexit.i.i43
-  %303 = phi %struct.Continuation* [ %scevgep3.i.i42, %.loopexit.i.i43 ], [ %294, %newRunningValue.exit ]
-  %304 = getelementptr inbounds %struct.Continuation* %303, i64 0, i32 2
-  %305 = load %struct.Continuation** %304, align 8, !tbaa !15
-  store %struct.Continuation* %305, %struct.Continuation** @allocateContinuation.pool, align 8, !tbaa !1
-  %306 = getelementptr inbounds %struct.Continuation* %303, i64 0, i32 0
-  store i32 1, i32* %306, align 4, !tbaa !17
-  %307 = getelementptr inbounds %struct.Continuation* %303, i64 0, i32 1, i32 0, i32 0
-  %ap_x.c.i = bitcast %struct.Value* %254 to %struct.VExp*
-  store %struct.VExp* %ap_x.c.i, %struct.VExp** %307, align 8, !tbaa !21
-  %308 = load %struct.Continuation** %293, align 8, !tbaa !37
-  store %struct.Continuation* %308, %struct.Continuation** %304, align 8, !tbaa !15
-  store %struct.Continuation* %303, %struct.Continuation** %293, align 8, !tbaa !37
-  %309 = tail call %struct.Value* @releaseValue(%struct.Value* %.0)
+  %304 = phi %struct.Continuation* [ %scevgep3.i.i42, %.loopexit.i.i43 ], [ %295, %newRunningValue.exit ]
+  %305 = getelementptr inbounds %struct.Continuation* %304, i64 0, i32 2
+  %306 = load %struct.Continuation** %305, align 8, !tbaa !15
+  store %struct.Continuation* %306, %struct.Continuation** @allocateContinuation.pool, align 8, !tbaa !1
+  %307 = getelementptr inbounds %struct.Continuation* %304, i64 0, i32 0
+  store i32 1, i32* %307, align 4, !tbaa !17
+  %308 = getelementptr inbounds %struct.Continuation* %304, i64 0, i32 1, i32 0, i32 0
+  %ap_x.c.i = bitcast %struct.Value* %255 to %struct.VExp*
+  store %struct.VExp* %ap_x.c.i, %struct.VExp** %308, align 8, !tbaa !21
+  %309 = load %struct.Continuation** %294, align 8, !tbaa !37
+  store %struct.Continuation* %309, %struct.Continuation** %305, align 8, !tbaa !15
+  store %struct.Continuation* %304, %struct.Continuation** %294, align 8, !tbaa !37
+  %310 = tail call %struct.Value* @releaseValue(%struct.Value* %.0)
   br label %.backedge
 
-; <label>:310                                     ; preds = %42, %40, %29, %19
-  %exitcode.0 = phi i32 [ 1, %19 ], [ 0, %29 ], [ 1, %40 ], [ %45, %42 ]
-  %311 = tail call %struct.Value* @releaseValue(%struct.Value* %.0)
-  %312 = bitcast %struct._IO_FILE** %files.0 to i8*
-  tail call void @free(i8* %312) #7
+; <label>:311                                     ; preds = %43, %41, %30, %20
+  %exitcode.0 = phi i32 [ 1, %20 ], [ 0, %30 ], [ 1, %41 ], [ %46, %43 ]
+  %312 = tail call %struct.Value* @releaseValue(%struct.Value* %.0)
+  %313 = bitcast %struct._IO_FILE** %files.0 to i8*
+  tail call void @free(i8* %313) #7
   ret i32 %exitcode.0
 }
 

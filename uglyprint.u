@@ -1,12 +1,7 @@
 (import* io)
 (import* parseu)
 (run
-	(args getArgs)
-	(arg0 _ (args (run
-		(_ (putStrLn "uglyprint filename.u"))
-		(exit 0)
-	)))
-	(fin (open arg0 ReadMode))
+	(fin (open "aplusb.u" ReadMode))
 	(content (readContentF fin))
 	(_ (close fin))
 	(let onSError (\msg pos (run
